@@ -1,0 +1,4 @@
+# ninja log v5
+0	5677	1690144969527571929	/home/liujack/RVOS/OnlineRefer/models/ops/build/temp.linux-x86_64-cpython-38/home/liujack/RVOS/OnlineRefer/models/ops/src/cpu/ms_deform_attn_cpu.o	19ad1c422084c97e
+0	13768	1690144977619527028	/home/liujack/RVOS/OnlineRefer/models/ops/build/temp.linux-x86_64-cpython-38/home/liujack/RVOS/OnlineRefer/models/ops/src/cuda/ms_deform_attn_cuda.o	fa0574e38773a198
+0	15540	1690144979383517215	/home/liujack/RVOS/OnlineRefer/models/ops/build/temp.linux-x86_64-cpython-38/home/liujack/RVOS/OnlineRefer/models/ops/src/vision.o	ba38ace037bb8645
