@@ -7,9 +7,9 @@ PY_ARGS=${@:2}  # Any arguments from the forth one are captured by this
 # echo "Load model weights from: ${CHECKPOINT}"
 
 # test using the model trained on ref-youtube-vos directly
-python3 inference_davis_online_sam_prop_dino.py --with_box_refine --binary --freeze_text_encoder \
---output_dir=${OUTPUT_DIR} --dataset_file davis \
---online --use_SAM --use_UVC -s 480 ${PY_ARGS}
+# python3 inference_davis_online_sam_prop_dino.py --with_box_refine --binary --freeze_text_encoder \
+# --output_dir=${OUTPUT_DIR} --dataset_file davis \
+# --online --use_SAM --use_UVC -s 480 ${PY_ARGS}
 
 # # evaluation
 ANNO0_DIR=${OUTPUT_DIR}/"valid"/"anno_0"
