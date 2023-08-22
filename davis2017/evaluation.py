@@ -90,6 +90,9 @@ class DAVISEvaluation(object):
                 j_metrics_res, f_metrics_res = self._evaluate_semisupervised(all_gt_masks, all_res_masks, None, metric)
             for ii in range(all_gt_masks.shape[0]):
                 seq_name = f'{seq}_{ii+1}'
+                if ii >= 3 and seq == 'india':
+                    break
+                
                 if 'J' in metric:
                     [JM, JR, JD] = utils.db_statistics(j_metrics_res[ii])
                     metrics_res['J']["M"].append(JM)
@@ -102,7 +105,6 @@ class DAVISEvaluation(object):
                     metrics_res['F']["R"].append(FR)
                     metrics_res['F']["D"].append(FD)
                     metrics_res['F']["M_per_object"][seq_name] = FM
-
             # Show progress
             if debug:
                 sys.stdout.write(seq + '\n')

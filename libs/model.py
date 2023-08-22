@@ -212,14 +212,8 @@ class Model_switchGTfixdot_swCC_Res(nn.Module):
 
 		Fgray1 = self.gray_encoder(gray1)
 		Fgray2 = self.gray_encoder(gray2)
-		import ipdb
-		ipdb.set_trace()
 		aff = self.nlm(Fgray1, Fgray2)
 		aff_norm = self.softmax(aff*self.temp)
-		# TODO: 
-		# 1. take G-DINO (or SAM) features
-		# 2. check the temp. effects
-		
 
 		if(color1 is None):
 			# for testing

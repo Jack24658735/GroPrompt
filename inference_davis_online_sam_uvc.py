@@ -516,7 +516,7 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
                             if args.use_SAM:
                                 # TODO: perform detection with Grounding DINO
                                 # detect objects
-                                boxes, logits, phrases = predict(
+                                boxes, logits, phrases, _ = predict(
                                     model=grounding_dino_model, 
                                     image=transform(img), 
                                     caption=exp,
@@ -606,6 +606,22 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
                                                     boxes = transformed_boxes,
                                                     multimask_output = False,
                                                 )
+                                        ### TODO: check:
+                                        ### if SAM segment nothing, or only few pixels compared with the size the bbox, then we also propagate the mask.
+                                        # print(masks.sum())
+                                        if masks.sum() < 100:
+                                            # print('propagate')
+                                            masks = propagate(prev_frame,
+                                                        frame, 
+                                                        model_uvc, 
+                                                        prev_mask,
+                                                        img_folder,
+                                                        video_name)
+                                            masks = torch.nn.functional.interpolate(masks,scale_factor=8,mode='bilinear')
+                                            masks = norm_mask(masks.squeeze(0))
+                                            masks = torchvision.transforms.functional.resize(masks, (origin_h,origin_w), Image.NEAREST)
+                                            masks = masks.unsqueeze(0)
+                                            _, masks = torch.max(masks, dim=1)
                                         
                                         # print(masks.unique())
                                         # print(masks.shape)
