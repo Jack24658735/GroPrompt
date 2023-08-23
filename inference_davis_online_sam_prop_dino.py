@@ -274,6 +274,9 @@ def propagate_feat(feat1, feat2, seg):
     nlm = NLM_woSoft()
     softmax_func = nn.Softmax(dim=1)
     seg = preprocess_seg_uvc(seg)
+
+    import ipdb
+    ipdb.set_trace()
     
     feat1 = torch.nn.functional.interpolate(feat1, size=(seg.shape[-2], seg.shape[-1]), mode='bilinear')
     feat2 = torch.nn.functional.interpolate(feat2, size=(seg.shape[-2], seg.shape[-1]), mode='bilinear')
@@ -281,10 +284,13 @@ def propagate_feat(feat1, feat2, seg):
     aff_matrix_func = nlm(feat1, feat2)
     # print(aff_matrix_func)
     # print(aff_matrix_func.shape)
+
     aff = softmax_func(aff_matrix_func * args.temp)
     # print(aff.sum())
     # print(aff)
     frame2_seg = transform_topk(aff,seg.cuda(),k=args.topk)
+
+
     return frame2_seg
 
 def create_transforms():
