@@ -608,8 +608,10 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
                                                 )
                                         ### TODO: check:
                                         ### if SAM segment nothing, or only few pixels compared with the size the bbox, then we also propagate the mask.
-                                        # print(masks.sum())
-                                        if masks.sum() < 100:
+                                        # print(masks)
+                                        # import ipdb
+                                        # ipdb.set_trace()
+                                        if masks.sum() < args.pixel_thres:
                                             # print('propagate')
                                             masks = propagate(prev_frame,
                                                         frame, 

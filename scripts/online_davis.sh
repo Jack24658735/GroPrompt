@@ -8,7 +8,7 @@ echo "Load model weights from: ${CHECKPOINT}"
 
 # test using the model trained on ref-youtube-vos directly
 
-python3 inference_davis_online.py --with_box_refine --binary --freeze_text_encoder \
+CUDA_VISIBLE_DEVICES=1, python3 inference_davis_online.py --with_box_refine --binary --freeze_text_encoder \
 --output_dir=${OUTPUT_DIR} --resume=${CHECKPOINT} --dataset_file davis \
 --online ${PY_ARGS}
 

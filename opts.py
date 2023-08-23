@@ -165,6 +165,8 @@ def get_args_parser():
                         help = "scale size, a single number for shorter edge, or a pair for height and width")
     parser.add_argument("--prop_thres", type = float, default = 0.0,
                         help = "thres to decide prop. or not")
+    parser.add_argument("--pixel_thres", type = int, default = 100,
+                        help = "num of pixels to decide prop. or not")
     return parser
 
 

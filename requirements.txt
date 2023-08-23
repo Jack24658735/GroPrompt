@@ -2,7 +2,7 @@ transformers==4.12.5
 cython 
 scipy
 opencv-python
-pillow
+pillow==8.4.0
 scikit-image
 timm
 einops
