@@ -275,16 +275,14 @@ def propagate_feat(feat1, feat2, seg):
     softmax_func = nn.Softmax(dim=1)
     seg = preprocess_seg_uvc(seg)
 
-    import ipdb
-    ipdb.set_trace()
-    
     feat1 = torch.nn.functional.interpolate(feat1, size=(seg.shape[-2], seg.shape[-1]), mode='bilinear')
     feat2 = torch.nn.functional.interpolate(feat2, size=(seg.shape[-2], seg.shape[-1]), mode='bilinear')
     # small_seg = np.array(Image.fromarray(seg_ori).resize((th//8,tw//8), 0)).astype(np.float32)
     aff_matrix_func = nlm(feat1, feat2)
     # print(aff_matrix_func)
     # print(aff_matrix_func.shape)
-
+    # import ipdb
+    # ipdb.set_trace()
     aff = softmax_func(aff_matrix_func * args.temp)
     # print(aff.sum())
     # print(aff)

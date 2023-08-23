@@ -333,7 +333,7 @@ class GroundingDINO(nn.Module):
             ]
         )
         ## NOTE: about 0.35..
-        out = {"pred_logits": outputs_class[-1], "pred_boxes": outputs_coord_list[-1], "intermediate_out": features[1].tensors}
+        out = {"pred_logits": outputs_class[-1], "pred_boxes": outputs_coord_list[-1], "intermediate_out": features[2].tensors}
         
 
         # out = {"pred_logits": outputs_class[-1], "pred_boxes": outputs_coord_list[-1], "intermediate_out": intermediate_feat}
