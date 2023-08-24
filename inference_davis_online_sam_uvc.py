@@ -603,7 +603,7 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
                                         masks, _, _ = sam_predictor.predict_torch(
                                                     point_coords = None,
                                                     point_labels = None,
-                                                    boxes = transformed_boxes,
+                                                    bofxes = transformed_boxes,
                                                     multimask_output = False,
                                                 )
                                         ### TODO: check:
@@ -727,6 +727,7 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
 
 
                         font_path = "/home/liujack/RVOS/OnlineRefer/fonts/OpenSans-Regular.ttf"
+                     
                         font = ImageFont.truetype(font_path, 30) # change the '30' to any size you want
                         position = (10, 10)
                         draw.text(position, text, (255, 0, 0), font=font)

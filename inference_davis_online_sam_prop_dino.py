@@ -758,8 +758,9 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
                         text = all_exps[exp_idx]
                         text = text + f', {anno_frame_origin[k - 1][f]}'
 
-
-                        font_path = "/home/liujack/RVOS/OnlineRefer/fonts/OpenSans-Regular.ttf"
+                        # import ipdb; ipdb.set_trace()
+                        # font_path = os.path.join(os.getcwd(),"fonts/OpenSans-Regular.ttf")
+                        font_path = "fonts/OpenSans-Regular.ttf"
                         font = ImageFont.truetype(font_path, 30) # change the '30' to any size you want
                         position = (10, 10)
                         draw.text(position, text, (255, 0, 0), font=font)
