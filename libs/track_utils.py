@@ -453,7 +453,8 @@ def match_ref_tar(F_ref, F_tar, seg_ref, temp):
     grid_flat = grid.view(-1,2)
 
     for cnt in range(seg_ref.size(0)):
-        seg_cnt = seg_ref[cnt, :, :].view(-1)
+        # seg_cnt = seg_ref[cnt, :, :].view(-1)
+        seg_cnt = seg_ref[cnt, :, :].reshape(-1)
         # there's no mask for this channel
         if(torch.sum(seg_cnt) < 2):
             coords[cnt] = None
@@ -630,29 +631,47 @@ def bbox_in_tar_scale(coords_tar, bbox_ref, h, w):
     """
     bbox_tar = {}
     #for cnt in range(len(bbox_ref)):
-    for cnt, bbox_cnt in bbox_ref.items():
-        if(cnt == 0):
-            bbox_tar_ = BBox(left = 0,
-                              right = w,
-                              top = 0,
-                              bottom = h,
-                              margin = 0.6, h = h, w = w)
-        elif(bbox_cnt is not None):
-            if not (cnt in coords_tar):
-                continue
-            coord = coords_tar[cnt]
-            if(coord is None):
-                continue
-            coord = coord.cpu()
+    
+    
+    # for cnt, bbox_cnt in bbox_ref.items():
+    #     if(cnt == 0):
+    #         bbox_tar_ = BBox(left = 0,
+    #                           right = w,
+    #                           top = 0,
+    #                           bottom = h,
+    #                           margin = 0.6, h = h, w = w)
+    #     elif(bbox_cnt is not None):
+    #         if not (cnt in coords_tar):
+    #             continue
+    #         coord = coords_tar[cnt]
+    #         if(coord is None):
+    #             continue
+    #         coord = coord.cpu()
 
-            bbox_tar_ = coords2bbox_scale(coord, h, w, bbox_cnt, margin=1, bandwidth=5)
-            #coord = coord_wrt_bbox(coord, bbox_tar_)
-            #new_coords[cnt] = coord
-            #bbox_tar_ = coords2bbox_scale(coord, h, w, bbox_tar_, margin=0.6, bandwidth=5)
-        else:
-            bbox_tar_ = None
+    #         bbox_tar_ = coords2bbox_scale(coord, h, w, bbox_cnt, margin=1, bandwidth=5)
+    #         #coord = coord_wrt_bbox(coord, bbox_tar_)
+    #         #new_coords[cnt] = coord
+    #         #bbox_tar_ = coords2bbox_scale(coord, h, w, bbox_tar_, margin=0.6, bandwidth=5)
+    #     else:
+    #         bbox_tar_ = None
 
-        bbox_tar[cnt] = bbox_tar_
+    #     bbox_tar[cnt] = bbox_tar_
+    
+    bbox_tar[0] =  BBox(left = 0,
+                        right = w,
+                        top = 0,
+                        bottom = h,
+                        margin = 0.6, h = h, w = w)
+    for cnt in range(len(bbox_ref)):
+        if not (cnt in coords_tar):
+            continue
+        coord = coords_tar[cnt]
+        if(coord is None):
+            continue
+        coord = coord.cpu()
+
+        bbox_tar_ = coords2bbox_scale(coord, h, w, bbox_ref, margin=1, bandwidth=5)
+        bbox_tar[cnt + 1] = bbox_tar_
     return bbox_tar, coords_tar
 
 def bbox_in_tar(coords_tar, bbox_ref, h, w):
