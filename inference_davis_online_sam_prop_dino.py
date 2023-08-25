@@ -676,6 +676,30 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
                                             masks = torchvision.transforms.functional.resize(masks, (origin_h,origin_w), Image.NEAREST)
                                             masks = masks.unsqueeze(0)
                                             _, masks = torch.max(masks, dim=1)
+                                            prev_mask = masks.to(torch.uint8).squeeze(0)
+                                            prev_frame = frame
+                                            prev_logits = max_logit
+                                            prev_intermediate_feat = intermediate_feat
+
+                                            pred_masks.append(masks)
+                                            ## TODO:
+                                            # save pred_logit?
+                                            pred_logits.append(max_logit.unsqueeze(0))
+                                            pred_boxes.append(boxes_xyxy)
+                                            ind = 'SAM'
+                                        else:
+                                            prev_mask = masks
+                                            prev_frame = frame
+                                            prev_logits = max_logit
+                                            prev_intermediate_feat = intermediate_feat
+
+                                            pred_masks.append(masks)
+                                            ## TODO:
+                                            # save pred_logit?
+                                            pred_logits.append(max_logit.unsqueeze(0))
+                                            pred_boxes.append(boxes_xyxy)
+                                            ind = 'SAM'
+
                                         # print(masks.unique())
                                         # print(masks.shape)
                                         # if not the first frame, then it must pass once of GroundedSAM
@@ -692,17 +716,7 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
                                         #     prev_mask = masks[0][0].unsqueeze(0)
                                         # else:
                                         #     prev_mask = masks
-                                        prev_mask = masks
-                                        prev_frame = frame
-                                        prev_logits = max_logit
-                                        prev_intermediate_feat = intermediate_feat
-
-                                        pred_masks.append(masks)
-                                        ## TODO:
-                                        # save pred_logit?
-                                        pred_logits.append(max_logit.unsqueeze(0))
-                                        pred_boxes.append(boxes_xyxy)
-                                        ind = 'SAM'
+                                     
                     # frame_origin = torch.cat(frame_origin, dim=0) 
                     # frame_origin shape: [t,]
                     pred_masks = torch.cat(pred_masks, dim=0)  # [t, h, w],
