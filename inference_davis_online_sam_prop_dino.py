@@ -665,12 +665,11 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
                                         # ipdb.set_trace()
                                         if masks.sum() < args.pixel_thres:
                                             # print('propagate')
-                                            masks = propagate(prev_frame,
-                                                        frame, 
-                                                        model_uvc, 
-                                                        prev_mask,
-                                                        img_folder,
-                                                        video_name)
+                                            masks = propagate_feat(
+                                                prev_intermediate_feat,
+                                                intermediate_feat,
+                                                prev_mask
+                                            )
                                             masks = torch.nn.functional.interpolate(masks,scale_factor=8,mode='bilinear')
                                             masks = norm_mask(masks.squeeze(0))
                                             masks = torchvision.transforms.functional.resize(masks, (origin_h,origin_w), Image.NEAREST)
@@ -680,7 +679,6 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
                                             prev_frame = frame
                                             prev_logits = max_logit
                                             prev_intermediate_feat = intermediate_feat
-
                                             pred_masks.append(masks)
                                             ## TODO:
                                             # save pred_logit?
