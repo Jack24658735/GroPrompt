@@ -578,7 +578,7 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
     num_all_frames = 0
 
     # 1. for each video
-    for video in video_list:
+    for video in video_list[16:]:
         metas = []
 
         expressions = data[video]["expressions"]
@@ -657,7 +657,7 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
                         img = Image.open(img_path).convert('RGB')
                         origin_w, origin_h = img.size
                         imgs.append(transform(img))  # list[Img]
-                        masks = torch.zeros((img.size)) # init for each frame
+                        masks = torch.zeros((1, 1, origin_h, origin_w)) # init for each frame
 
                         ## TODO: maybe directly perform prediction here? 
                         # so we can avoid the batch inference issues..
@@ -676,7 +676,7 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
                                     boxes_xyxy = torch.zeros((1, 4))
                                     ### DONE:
                                     # if this situation, no need SAM! (just all zeros)
-                                    masks = torch.zeros(masks.shape).to(device)
+                                    masks = torch.zeros((1, 1, origin_h, origin_w)).to(device)
                                     prev_frame = frame
                                     prev_mask = masks
                                     prev_bbox = boxes_xyxy
@@ -684,6 +684,7 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
                                     pred_boxes.append(boxes_xyxy)
                                     pred_logits.append(torch.zeros((1,)))
                                     ind = 'Prop.'
+                                    print('here')
                                     continue
 
                                 max_logit, max_idx = torch.max(logits, dim=0)
@@ -758,6 +759,8 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
                     pred_masks = torch.cat(pred_masks, dim=0)  # [t, h, w],
                     pred_boxes = torch.cat(pred_boxes, dim=0)
                     pred_logits = torch.cat(pred_logits, dim=0)
+                    print(f'{pred_masks.shape}, {ind}')
+
 
                     ## adjust to align num of dim for prop. and SAM
                     if all_pred_masks: # not empty
