@@ -479,12 +479,18 @@ def propagate_bbox(F_ref, F_tar, seg_ref, bbox_ref):
     # bbox_tar = adjust_bbox(bbox_tar, bbox_ref, 0.1, h, w)
     
     ## TODO: need to confirm again the adjust_bbox usage...
-
-    min_vals, _ = torch.min(coords_ref_tar[1], dim=0)
-    max_vals, _ = torch.max(coords_ref_tar[1], dim=0)
-    # x1, y1, x2, y2
-    bbox_tar = torch.cat([min_vals, max_vals])
-    bbox_tar = bbox_tar / torch.tensor([w, h, w, h]).cuda()
+    if coords_ref_tar.get(1) != None:
+        min_vals, _ = torch.min(coords_ref_tar[1], dim=0)
+        max_vals, _ = torch.max(coords_ref_tar[1], dim=0)
+        # x1, y1, x2, y2
+        bbox_tar = torch.cat([min_vals, max_vals])
+        bbox_tar = bbox_tar / torch.tensor([w, h, w, h]).cuda()
+    else:
+        min_vals, _ = torch.min(coords_ref_tar[0], dim=0)
+        max_vals, _ = torch.max(coords_ref_tar[0], dim=0)
+        # x1, y1, x2, y2
+        bbox_tar = torch.cat([min_vals, max_vals])
+        bbox_tar = bbox_tar / torch.tensor([w, h, w, h]).cuda()
     
     return bbox_tar, coords_ref_tar
 
@@ -754,8 +760,17 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
                     pred_logits = torch.cat(pred_logits, dim=0)
 
                     ## adjust to align num of dim for prop. and SAM
+                    if all_pred_masks: # not empty
+                        if pred_masks.dim() < all_pred_masks[-1].dim():
+                            all_pred_masks[-1] = all_pred_masks[-1].view(pred_masks.shape)
+                        elif pred_masks.dim() > all_pred_masks[-1].dim():
+                            pred_masks = pred_masks.view(all_pred_masks[-1].shape)
+
                     if pred_masks.dim() == 4:
                         pred_masks = pred_masks.squeeze(0)
+                    # if pred_masks.dim() == 2:
+                    #     pred_masks = pred_masks.unsqueeze(0)
+
                     if pred_boxes.dim() == 1:
                         pred_boxes = pred_boxes.unsqueeze(0)
                     all_pred_masks.append(pred_masks)
