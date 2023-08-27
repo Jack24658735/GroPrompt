@@ -578,7 +578,7 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
     num_all_frames = 0
 
     # 1. for each video
-    for video in video_list[16:]:
+    for video in video_list:
         metas = []
 
         expressions = data[video]["expressions"]
@@ -684,7 +684,6 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
                                     pred_boxes.append(boxes_xyxy)
                                     pred_logits.append(torch.zeros((1,)))
                                     ind = 'Prop.'
-                                    print('here')
                                     continue
 
                                 max_logit, max_idx = torch.max(logits, dim=0)
@@ -759,7 +758,7 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
                     pred_masks = torch.cat(pred_masks, dim=0)  # [t, h, w],
                     pred_boxes = torch.cat(pred_boxes, dim=0)
                     pred_logits = torch.cat(pred_logits, dim=0)
-                    print(f'{pred_masks.shape}, {ind}')
+                    # print(f'{pred_masks.shape}, {ind}')
 
 
                     ## adjust to align num of dim for prop. and SAM
