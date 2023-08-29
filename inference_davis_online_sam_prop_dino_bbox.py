@@ -644,7 +644,7 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
     num_all_frames = 0
 
     # 1. for each video
-    for video in video_list:
+    for video in video_list[14:]:
         metas = []
 
         expressions = data[video]["expressions"]
@@ -776,15 +776,23 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
                                     
                                     # calculate IOU of prev_bbox and all boxes
                                     filtered_bboxes = boxes[logits > args.prop_thres]
-                                    ious = [compute_iou(prev_bbox, bbox, origin_w, origin_h) for bbox in filtered_bboxes]
-                                    conf_scores = args.iou_alpha * logits[logits > args.prop_thres] + (1 - args.iou_alpha) * torch.tensor(ious)
-                                    # print(logits[logits > args.prop_thres])
-                                    # print(ious)
-                                    # print(scores)
-                                    # print('----')
-                                    _, conf_idx = torch.max(conf_scores, dim=0)
-                                    out_boxes = boxes[conf_idx].unsqueeze(0).cpu() ## shape: (1, 4)
-                                    ind = 'G-Dino'
+                                    if torch.numel(filtered_bboxes) == 0:
+                                        # this case, we found that prev_bbox is zero, thus we directly use SAM this frame
+                                        # Thus, take the max.
+                                        out_boxes = boxes[max_idx].unsqueeze(0).cpu() ## shape: (1, 4)
+                                        # print('QQ')
+                                        # print(f'{boxes} {logits} {filtered_bboxes} {conf_scores}')
+                                    else:
+                                        ious = [compute_iou(prev_bbox, bbox, origin_w, origin_h) for bbox in filtered_bboxes]
+                                        conf_scores = args.iou_alpha * logits[logits > args.prop_thres] + (1 - args.iou_alpha) * torch.tensor(ious)
+                                        # print(f'{boxes} {logits} {filtered_bboxes} {conf_scores}')
+                                        # print(logits[logits > args.prop_thres])
+                                        # print(ious)
+                                        # print(scores)
+                                        # print('----')
+                                        _, conf_idx = torch.max(conf_scores, dim=0)
+                                        out_boxes = boxes[conf_idx].unsqueeze(0).cpu() ## shape: (1, 4)
+                                        ind = 'G-Dino'
 
                                 # Note!!! handle special cases for "india"
                                 # print(out_boxes)
