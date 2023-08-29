@@ -453,15 +453,81 @@ def preprocess_frame_uvc(frame_num, img_folder, video_name):
     out = list(trans(*pair))
     return out[0].cuda().unsqueeze(0)
 
+
+def bbox2mask(bbox, shape):
+    """
+    Convert a bounding box to a binary mask using PyTorch.
+
+    Parameters:
+    - bbox: a tensor of the form [[cx, cy, w, h]]
+            with normalized values between [0, 1]
+    - shape: torch.Size object (e.g., torch.Size([1, 1, 480, 910]))
+
+    Returns:
+    - mask: a tensor of the given shape with values set to 1 inside the bbox and 0 outside
+    """
+    height, width = shape[2], shape[3]
+    
+    # Convert normalized bbox to absolute coordinates
+    bbox_abs = (bbox * torch.tensor([width, height, width, height])).int()
+
+    if len(bbox_abs.shape) != 2:
+        bbox_abs = bbox_abs.unsqueeze(0)
+
+    # Convert (cx, cy, w, h) format to (xmin, ymin, xmax, ymax) format
+    cx, cy, w, h = bbox_abs[0][0].item(), bbox_abs[0][1].item(), bbox_abs[0][2].item(), bbox_abs[0][3].item()
+    xmin = cx - w // 2
+    xmax = cx + w // 2
+    ymin = cy - h // 2
+    ymax = cy + h // 2
+    
+    # Create a meshgrid of shape (height, width)
+    rows = torch.arange(0, height, dtype=torch.int64).unsqueeze(1)
+    cols = torch.arange(0, width, dtype=torch.int64)
+    
+    # Create the mask
+    mask = (rows >= ymin) & (rows < ymax) & (cols >= xmin) & (cols < xmax)
+    
+    # Adjust the mask shape to match the given shape (e.g., [1, 1, 480, 910])
+    mask = mask.float().unsqueeze(0).unsqueeze(0)
+    
+    return mask
+
+def compute_iou(boxA, boxB, width, height):
+    """
+    Compute the Intersection over Union (IoU) between two bounding boxes using torchvision.
+    
+    Each bbox is of the form [1, 4]: [[xmin, ymin, xmax, ymax]]
+    """
+    if len(boxA.shape) != 2:
+        boxA = boxA.unsqueeze(0)
+    if len(boxB.shape) != 2:
+        boxB = boxB.unsqueeze(0)
+    # Scale bounding boxes
+    boxA_scaled = boxA * torch.tensor([width, height, width, height])
+    boxB_scaled = boxB * torch.tensor([width, height, width, height])
+    boxA_xyxy = torchvision.ops.box_convert(boxA_scaled, in_fmt='cxcywh', out_fmt='xyxy')
+    boxB_xyxy = torchvision.ops.box_convert(boxB_scaled, in_fmt='cxcywh', out_fmt='xyxy')
+
+    # import ipdb; ipdb.set_trace()
+    iou_matrix = torchvision.ops.box_iou(boxA_xyxy, boxB_xyxy)
+    
+    # Since both boxA and boxB are single boxes, the IoU will be a 1x1 matrix. We extract the scalar value.
+    iou_value = iou_matrix[0, 0].item()
+
+    return iou_value
+
+
 def propagate_bbox(F_ref, F_tar, seg_ref, bbox_ref):
     # F_ref, F_tar = forward(img_ref, img_tar, model, seg_ref, return_feature=True)
     # seg_ref = seg_ref.squeeze(0)
     F_ref, F_tar = squeeze_all(F_ref, F_tar)
     
-    seg_ref = preprocess_seg_uvc(seg_ref)
-    # seg_ref = seg_ref.squeeze(0)
+    ## OK: turn bbox into mask and send into match_ref_tar
+    seg_ref = bbox2mask(bbox_ref, seg_ref.shape)
 
-    ### TODO: check the bbox scaling and format....
+    seg_ref = preprocess_seg_uvc(seg_ref)
+
     F_ref = torch.nn.functional.interpolate(F_ref.unsqueeze(0), size=(seg_ref.shape[-2], seg_ref.shape[-1]), mode='bilinear')
     F_tar = torch.nn.functional.interpolate(F_tar.unsqueeze(0), size=(seg_ref.shape[-2], seg_ref.shape[-1]), mode='bilinear')
     
@@ -478,7 +544,7 @@ def propagate_bbox(F_ref, F_tar, seg_ref, bbox_ref):
     # adjust bbox
     # bbox_tar = adjust_bbox(bbox_tar, bbox_ref, 0.1, h, w)
     
-    ## TODO: need to confirm again the adjust_bbox usage...
+    ## DONE: need to confirm again the adjust_bbox usage...
     if coords_ref_tar.get(1) != None:
         min_vals, _ = torch.min(coords_ref_tar[1], dim=0)
         max_vals, _ = torch.max(coords_ref_tar[1], dim=0)
@@ -689,10 +755,6 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
                                 max_logit, max_idx = torch.max(logits, dim=0)
                                 is_all_zeros = torch.all(prev_bbox == 0).item()
                                 if max_logit < args.prop_thres and t != 0 and not is_all_zeros:
-                                    ## TODO: bbox prop. with UVC
-                                    # still, use the G-DINO logit to decide prop or not
-                                    # perform bbox prop.
-                                    # print(prev_bbox)
                                     out_boxes, coords = propagate_bbox(prev_intermediate_feat,
                                                                intermediate_feat,
                                                                prev_mask,
@@ -700,21 +762,29 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
                                                             #    origin_h,
                                                             #    origin_w
                                                                ) # produce by UVC
-                                    # print('bbox prop.')
                                     # recover to xyxy format
                                     # bbox_pre (xyxy format): (x1, y1, x2, y2) 
                                     # define its bottom, top, left, right
                                     # x1, y1 being top left and x2, y2 being bottom right.
-                                    
-                                    # out_boxes = torch.Tensor([out_boxes[1].top, out_boxes[1].left, out_boxes[1].right, out_boxes[1].bottom])
                                     out_boxes = torchvision.ops.box_convert(out_boxes, in_fmt='xyxy', out_fmt='cxcywh').cpu()
-                                    # out_boxes = out_boxes / torch.Tensor([origin_w, origin_h, origin_w, origin_h])
                                     ind = 'Prop.'
                                 else:
                                     # select high conf. box
-                                    out_boxes = boxes[max_idx].unsqueeze(0).cpu() ## shape: (1, 4)
+                                    # TODO: iou score 
+                                    # Need to filter out the thres hold accoding to the logits of G-DINO
+                                    # Handle the case when there is no bbox from prop. (all zeros)
+                                    
+                                    # calculate IOU of prev_bbox and all boxes
+                                    filtered_bboxes = boxes[logits > args.prop_thres]
+                                    ious = [compute_iou(prev_bbox, bbox, origin_w, origin_h) for bbox in filtered_bboxes]
+                                    conf_scores = args.iou_alpha * logits[logits > args.prop_thres] + (1 - args.iou_alpha) * torch.tensor(ious)
+                                    # print(logits[logits > args.prop_thres])
+                                    # print(ious)
+                                    # print(scores)
+                                    # print('----')
+                                    _, conf_idx = torch.max(conf_scores, dim=0)
+                                    out_boxes = boxes[conf_idx].unsqueeze(0).cpu() ## shape: (1, 4)
                                     ind = 'G-Dino'
-                                    # print('no bbox prop.')
 
                                 # Note!!! handle special cases for "india"
                                 # print(out_boxes)

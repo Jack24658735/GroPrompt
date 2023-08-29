@@ -167,6 +167,8 @@ def get_args_parser():
                         help = "thres to decide prop. or not")
     parser.add_argument("--pixel_thres", type = int, default = 999999,
                         help = "num of pixels to decide prop. or not")
+    parser.add_argument("--iou_alpha", type = float, default = 1.0,
+                        help = "alpha for iou, determine which bbox should be used.")
     return parser
 
 

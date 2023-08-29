@@ -301,7 +301,7 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
                             if args.use_SAM:
                                 # TODO: perform detection with Grounding DINO
                                 # detect objects
-                                boxes, logits, phrases = predict(
+                                boxes, logits, phrases, _ = predict(
                                     model=grounding_dino_model, 
                                     image=transform(img), 
                                     caption=exp,
@@ -405,7 +405,8 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
                         # print(all_exps)
                         # print(len(all_exps))
                         text = all_exps[exp_idx]
-                        font_path = "/home/liujack/RVOS/OnlineRefer/fonts/OpenSans-Regular.ttf"
+                        # font_path = "/home/liujack/RVOS/OnlineRefer/fonts/OpenSans-Regular.ttf"
+                        font_path = "fonts/OpenSans-Regular.ttf"
                         font = ImageFont.truetype(font_path, 30) # change the '30' to any size you want
                         position = (10, 10)
                         draw.text(position, text, (255, 0, 0), font=font)
