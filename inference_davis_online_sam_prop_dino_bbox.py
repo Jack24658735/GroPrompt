@@ -644,7 +644,7 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
     num_all_frames = 0
 
     # 1. for each video
-    for video in video_list[14:]:
+    for video in video_list:
         metas = []
 
         expressions = data[video]["expressions"]
