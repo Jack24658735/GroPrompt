@@ -277,13 +277,18 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
                     if args.use_SAM:
                         # TODO: perform detection with Grounding DINO
                         # detect objects
-                        boxes, logits, phrases = predict(
+                        boxes, logits, phrases, _ = predict(
                             model=grounding_dino_model, 
                             image=transform(img), 
                             caption=exp,
                             box_threshold=BOX_THRESHOLD, 
                             text_threshold=TEXT_THRESHOLD
                         )
+
+                        ## box selection is TODO:
+
+
+                        ## NOT DONE
                         
                         # TODO: perform seg. with SAM
                         img_arr = np.asarray(img)
@@ -301,6 +306,7 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
                                     boxes = transformed_boxes,
                                     multimask_output = False,
                                 )
+                        import ipdb; ipdb.set_trace()
                         pred_masks.append(masks)
                         pred_boxes.append(boxes_xyxy)
                         pred_logits.append(logits_seg)

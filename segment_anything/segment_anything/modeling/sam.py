@@ -14,9 +14,11 @@ from .image_encoder import ImageEncoderViT
 from .mask_decoder import MaskDecoder
 from .prompt_encoder import PromptEncoder
 
+# from ..utils.transforms import ResizeLongestSide
+
 
 class Sam(nn.Module):
-    mask_threshold: float = 0.0
+    mask_threshold: float = 0.0 ## NOTE: This is the only change for testing
     image_format: str = "RGB"
 
     def __init__(
@@ -49,9 +51,62 @@ class Sam(nn.Module):
     @property
     def device(self) -> Any:
         return self.pixel_mean.device
+    
+    def forward(self, batched_input, multimask_output):
+        if isinstance(batched_input, list):
+            outputs = self.forward_ori(batched_input, multimask_output)
+        else:
+            # this is for training only, batched_input is a "dict" in my setting.
+            outputs = self.forward_train(batched_input, multimask_output)
+        return outputs
+
+    # REF: https://github.com/hitachinsk/SAMed/blob/e351840481f51d0c7dee50007f29d02197b63d99/segment_anything/modeling/sam.py#L54
+    def forward_train(self, batched_input, multimask_output):
+        input_images = self.preprocess(batched_input['image'].tensors.squeeze(0))
+        with torch.no_grad():
+            image_embeddings = self.image_encoder(input_images)
+          
+            sparse_embeddings, dense_embeddings = self.prompt_encoder(
+                points=None, boxes=batched_input['bbox'], masks=None
+            )
+        
+        ## image_embedding[0]: features
+        ## image_embedding[1]: interm_features
+        
+        low_res_masks, iou_predictions = self.mask_decoder(
+            image_embeddings=image_embeddings[0],
+            image_pe=self.prompt_encoder.get_dense_pe(),
+            sparse_prompt_embeddings=sparse_embeddings,
+            dense_prompt_embeddings=dense_embeddings,
+            multimask_output=multimask_output,
+            # for sam hq setting
+            hq_token_only=False,
+            interm_embeddings=image_embeddings[1],
+            
+        )
+        # masks = self.postprocess_masks(
+        #     low_res_masks,
+        #     input_size=(image_size, image_size),
+        #     original_size=(image_size, image_size)
+        # )
+        masks = self.postprocess_masks(
+              low_res_masks,
+              input_size=(batched_input['size'][0].item(), batched_input['size'][1].item()),
+              # original_size=(batched_input['orig_size'][0].item(), batched_input['orig_size'][1].item()),
+              original_size=(batched_input['size'][0].item(), batched_input['size'][1].item())
+        )
+        # from torch.nn.functional import threshold, normalize
+        # masks = normalize(threshold(masks, 0.0, 0))
+        # masks = masks > self.mask_threshold
+        outputs = {
+            'masks': masks,
+            'iou_predictions': iou_predictions,
+            'low_res_logits': low_res_masks
+        }
+        return outputs
 
     @torch.no_grad()
-    def forward(
+    def forward_ori(
         self,
         batched_input: List[Dict[str, Any]],
         multimask_output: bool,

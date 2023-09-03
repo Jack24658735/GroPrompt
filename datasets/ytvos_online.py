@@ -43,7 +43,7 @@ class YTVOSDataset(Dataset):
         self.num_clips = args.num_clips
         self.max_skip = max_skip
         self.sampler_interval = sampler_interval
-        self.reverse_aug = args.reverse_aug
+        # self.reverse_aug = args.reverse_aug
         # create video meta data
         self.prepare_metas()
 
@@ -143,8 +143,8 @@ class YTVOSDataset(Dataset):
                     sample_indx.extend(local_indx)
 
             sample_indx.sort()
-            if random.random() < self.reverse_aug:
-                sample_indx = sample_indx[::-1]
+            # if random.random() < self.reverse_aug:
+            #     sample_indx = sample_indx[::-1]
 
             # read frames and masks
             imgs, labels, boxes, masks, valid = [], [], [], [], []
@@ -190,7 +190,7 @@ class YTVOSDataset(Dataset):
                 'valid': torch.tensor(valid),  # [T,]
                 'caption': exp,
                 'orig_size': torch.as_tensor([int(h), int(w)]),
-                'size': torch.as_tensor([int(h), int(w)])
+                'size': torch.as_tensor([int(h), int(w)]),
             }
 
             # "boxes" normalize to [0, 1] and transform from xyxy to cxcywh in self._transform
