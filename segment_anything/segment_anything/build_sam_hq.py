@@ -11,14 +11,14 @@ from functools import partial
 from .modeling import ImageEncoderViT, MaskDecoderHQ, PromptEncoder, Sam, TwoWayTransformer
 
 
-def build_sam_hq_vit_h(checkpoint=None):
+def build_sam_hq_vit_h(checkpoint=None, mask_threshold=0.0):
     return _build_sam(
         encoder_embed_dim=1280,
         encoder_depth=32,
         encoder_num_heads=16,
         encoder_global_attn_indexes=[7, 15, 23, 31],
         checkpoint=checkpoint,
-        mask_threshold=0.0,
+        mask_threshold=mask_threshold,
     )
 
 
