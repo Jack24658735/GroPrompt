@@ -43,3 +43,8 @@ R-VOS Project
     # install GroundingDINO
     pip install -e .
     ```
+## Run our code
+* Prepare data & model weight (e.g., trained SAM checkpoint)
+*  ```bash
+    bash online_ytvos_train_sam_lora.sh ./outputs/
+    ```

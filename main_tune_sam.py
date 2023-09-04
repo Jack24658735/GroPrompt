@@ -90,7 +90,9 @@ def main(args):
     ## 2. Building SAM Model and SAM Predictor
     device = torch.device(args.device)
     # sam_checkpoint = '/home/liujack/RVOS/Grounded-Segment-Anything/sam_vit_h_4b8939.pth'
-    sam_hq_checkpoint = '/home/liujack/RVOS/Grounded-Segment-Anything/sam_hq_vit_h.pth'
+    # sam_hq_checkpoint = '/home/liujack/RVOS/Grounded-Segment-Anything/sam_hq_vit_h.pth'
+    sam_hq_checkpoint = args.sam_ckpt_path
+    
     
     # sam = build_sam(checkpoint=sam_checkpoint)
     sam = build_sam_hq(checkpoint=sam_hq_checkpoint)
