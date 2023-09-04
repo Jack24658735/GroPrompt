@@ -38,7 +38,8 @@ class Check(object):
             if False in keep:
                 for k in range(len(keep)):
                     if not keep[k] and "boxes" in target:
-                        target['boxes'][k] = target['boxes'][k]//1000.0  # [0, 0, 0, 0]
+                        # target['boxes'][k] = target['boxes'][k]//1000.0  # [0, 0, 0, 0]
+                        target['boxes'][k] = torch.div(target['boxes'][k], 1000.0, rounding_mode='trunc')  # [0, 0, 0, 0]
             
         target['valid'] = keep.to(torch.int32)
 

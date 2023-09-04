@@ -110,7 +110,7 @@ def train_one_epoch_sam(model: torch.nn.Module,
     metric_logger = utils.MetricLogger(delimiter="  ")
     metric_logger.add_meter('lr', utils.SmoothedValue(window_size=1, fmt='{value:.6f}'))
     header = 'Exp: {}, Epoch: [{}]'.format(args.output_dir, epoch)
-    print_freq = 10
+    print_freq = 1000
     n_iters = 0
     for samples, targets in metric_logger.log_every(data_loader, print_freq, header):
         samples = samples.to(device)
@@ -149,13 +149,9 @@ def train_one_epoch_sam(model: torch.nn.Module,
         # NOTE: this masks is the output of sam model, which is the logits, and it is "unthres."
         logits = outputs['masks']
         # loss = criterion(outputs, targets)
-        ## BUG: ...
         loss = torchvision.ops.sigmoid_focal_loss(logits.squeeze(0),  targets[0]['masks'][:].float(), reduction='mean')
-        # import ipdb; ipdb.set_trace()
         # loss = ce_loss(logits.squeeze(0), targets[0]['masks'][:].float())
         
-
-
         # weight_dict = criterion.weight_dict
         # losses = sum(loss_dict[k] * weight_dict[k] for k in loss_dict.keys() if k in weight_dict)
 
