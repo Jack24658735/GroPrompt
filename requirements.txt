@@ -10,3 +10,5 @@ pandas
 imgaug
 h5py
 av
+ipdb
+tensorboardx

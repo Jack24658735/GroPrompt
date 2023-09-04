@@ -18,7 +18,8 @@ R-VOS Project
     ```bash
     pip install torch==1.12.0+cu116 torchvision==0.13.0+cu116 -f https://download.pytorch.org/whl/torch_stable.html
     ```
-4. Install packages needed for our project.
+    * Note: On TWCC, we should install the newest torch by directly using `pip install torch && pip install torchvision` to avoid errors.s
+5. Install packages needed for our project.
     ``` bash
     # Install packages from RVOS (Referformer, Onlinerefer)
     # Note: pillow version should be 8.4.0 to avoid error
