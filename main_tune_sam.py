@@ -95,7 +95,7 @@ def main(args):
     
     
     # sam = build_sam(checkpoint=sam_checkpoint)
-    sam = build_sam_hq(checkpoint=sam_hq_checkpoint)
+    sam = build_sam_hq(checkpoint=sam_hq_checkpoint, mask_threshold=args.mask_threshold)
     # use_sam_hq
     sam.to(device=device)
     

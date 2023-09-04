@@ -153,7 +153,10 @@ def get_args_parser():
 
     # SAM setting
     parser.add_argument('--use_SAM', action='store_true')
-    parser.add_argument('--sam_ckpt_path', type=str, default='RVOS/Grounded-Segment-Anything/sam_hq_vit_h.pth')
+    
+    parser.add_argument('--sam_ckpt_path', type=str, default='RVOS/Grounded-Segment-Anything/sam_hq_vit_h.pth')    
+    parser.add_argument("--mask_threshold", type = float, default = 0.0,
+                        help = "thres to decide seg. map outputs.")
 
     # UVC setting
     # parser.add_argument('--use_UVC', action='store_true')
@@ -177,6 +180,7 @@ def get_args_parser():
     # LORA setting
     parser.add_argument("--lora_rank", type = int, default = 4,
                         help = "Rank of LORA")
+    
 
     return parser
 
