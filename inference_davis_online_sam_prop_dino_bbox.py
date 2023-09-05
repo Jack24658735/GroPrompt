@@ -848,7 +848,6 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
                                                 point_labels = None,
                                                 boxes = transformed_boxes,
                                                 multimask_output = False,
-                                                obj_id=obj_id,
                                             )
                                     prev_mask = masks
                                     prev_bbox = out_boxes
