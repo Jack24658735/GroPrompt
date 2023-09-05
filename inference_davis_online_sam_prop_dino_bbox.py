@@ -56,6 +56,7 @@ import libs.transforms_pair as transforms
 
 import torch.nn as nn
 import ipdb
+import csv
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -561,6 +562,21 @@ def propagate_bbox(F_ref, F_tar, seg_ref, bbox_ref):
     return bbox_tar, coords_ref_tar
 
 
+# Define a function to save bounding box data to a CSV file
+def save_bbox_to_csv(output_csv, data):
+    # Check if the file exists to decide whether to write headers
+    write_headers = not os.path.exists(output_csv)
+
+    with open(output_csv, 'a', newline='') as file:
+        fieldnames = ["VideoName", "ImageName", "ObjectID", "xmin", "ymin", "xmax", "ymax", "Confidence", "Class"]
+        writer = csv.DictWriter(file, fieldnames=fieldnames)
+
+        if write_headers:
+            writer.writeheader()
+
+        for entry in data:
+            writer.writerow(entry)
+
 
 def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_prefix, img_folder, video_list):
     text = 'processor %d' % pid
@@ -644,6 +660,8 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
 
     num_all_frames = 0
 
+    font_path = "fonts/OpenSans-Regular.ttf"
+    font = ImageFont.truetype(font_path, 30) # change the '30' to any size you want
     # 1. for each video
     for video in video_list:
         metas = []
@@ -666,9 +684,11 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
         # since there are 4 annotations
         num_obj = num_expressions // 4
 
+        image_cache_for_video = {}
         # 2. for each annotator
         for anno_id in range(4):  # 4 annotators
             all_exps = []
+            bbox_data = []
             anno_logits = []
             anno_masks = []  # [num_obj+1, video_len, h, w], +1 for background
             anno_boxes = []
@@ -721,7 +741,12 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
                         # print('current clip_id', clip_id)
                         frame = frames[t]
                         img_path = os.path.join(img_folder, video_name, frame + ".jpg")
-                        img = Image.open(img_path).convert('RGB')
+                        
+                        # Use the cached image if it's already loaded, otherwise load and cache it
+                        if img_path not in image_cache_for_video:
+                            image_cache_for_video[img_path] = Image.open(img_path).convert('RGB')
+                        # img = Image.open(img_path).convert('RGB')
+                        img = image_cache_for_video[img_path].copy()
                         origin_w, origin_h = img.size
                         imgs.append(transform(img))  # list[Img]
                         masks = torch.zeros((1, 1, origin_h, origin_w)) # init for each frame
@@ -823,6 +848,7 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
                                                 point_labels = None,
                                                 boxes = transformed_boxes,
                                                 multimask_output = False,
+                                                obj_id=obj_id,
                                             )
                                     prev_mask = masks
                                     prev_bbox = out_boxes
@@ -863,7 +889,6 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
                 all_pred_masks = torch.cat(all_pred_masks, dim=0)  # (video_len, h, w)
                 all_pred_boxes = torch.cat(all_pred_boxes, dim=0)
                 all_exps.append(exp)
-              
                 anno_logits.append(all_pred_logits)
                 anno_masks.append(all_pred_masks)
                 anno_boxes.append(all_pred_boxes)
@@ -893,9 +918,15 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
                 if args.visualize:
                     exp_idx = 0
                     # for k in range(num_obj, 0, -1):
+                    image_cache = {}
                     for k in range(1, num_obj + 1):
                         img_path = os.path.join(img_folder, video_name, frames[f] + ".jpg")
-                        source_img = Image.open(img_path).convert('RGBA')
+                        # Use the cached image if it's already loaded, otherwise load and cache it
+                        if img_path not in image_cache:
+                            image_cache[img_path] = Image.open(img_path).convert('RGBA')
+
+                        # source_img = Image.open(img_path).convert('RGBA')
+                        source_img = image_cache[img_path].copy()
                         origin_w, origin_h = source_img.size
                         draw = ImageDraw.Draw(source_img)
                         # text = expressions[expression_list[i]]["exp"]
@@ -907,8 +938,6 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
 
                         # import ipdb; ipdb.set_trace()
                         # font_path = os.path.join(os.getcwd(),"fonts/OpenSans-Regular.ttf")
-                        font_path = "fonts/OpenSans-Regular.ttf"
-                        font = ImageFont.truetype(font_path, 30) # change the '30' to any size you want
                         position = (10, 10)
                         draw.text(position, text, (255, 0, 0), font=font)
 
@@ -921,7 +950,7 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
                         # plot the bbox score
                         plot_bbox_score = f'{anno_logits[k - 1][f].item():.2f}'
                         draw.text((xmin, ymin), plot_bbox_score, (255, 0, 0), font=font)
-
+                    
                         
                         mask_arr = np.array(img_E)
                         plot_mask = np.zeros_like(mask_arr)
@@ -940,6 +969,23 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
                         save_visualize_path = os.path.join(save_visualize_path_dir,  frames[f] + f'_{k}.png')
                         source_img.save(save_visualize_path)
                         exp_idx += 1
+
+                        bbox_info = {
+                            "VideoName": video_name,
+                            "ImageName": frames[f] + ".jpg",
+                            "ObjectID": k,
+                            "xmin": xmin,
+                            "ymin": ymin,
+                            "xmax": xmax,
+                            "ymax": ymax,
+                            "Confidence": anno_logits[k - 1][f].item()
+                        }
+                        bbox_data.append(bbox_info)
+            # Define the path to the output CSV file
+            output_csv = os.path.join(anno_save_path, "bounding_box_data.csv")
+            # Call the function to save the bounding box data to the CSV file
+            save_bbox_to_csv(output_csv, bbox_data)
+       
         with lock:
             progress.update(1)
     result_dict[str(pid)] = num_all_frames

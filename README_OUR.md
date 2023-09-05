@@ -33,6 +33,7 @@ R-VOS Project
     cd ../..
 
     # install SAM
+    # Note: if you modify the SAM code, you should re-run this command.
     python -m pip install -e segment_anything
     
     # remove build/ and groundingdino.egg-info/ if they exist
