@@ -219,7 +219,9 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
     num_all_frames = 0
     fps_time = 0.0
     fps_frames = 0.0
-
+    
+    font_path = "fonts/OpenSans-Regular.ttf"
+    font = ImageFont.truetype(font_path, 30) # change the '30' to any size you want
     # 1. For each video
     for video in video_list:
         metas = []  # list[dict], length is number of expressions
@@ -366,8 +368,6 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
                         draw.rectangle(((xmin, ymin), (xmax, ymax)), outline=tuple(our_colors[0]), width=2)
 
                         text = exp
-                        font_path = "/home/liujack/RVOS/OnlineRefer/fonts/OpenSans-Regular.ttf"
-                        font = ImageFont.truetype(font_path, 30) # change the '30' to any size you want
                         position = (10, 10)
                         draw.text(position, text, (255, 0, 0), font=font)
 

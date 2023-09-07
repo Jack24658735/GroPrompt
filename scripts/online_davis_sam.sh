@@ -4,10 +4,7 @@ OUTPUT_DIR=$1
 SAM_CHECKPOINT=$2
 PY_ARGS=${@:3}  # Any arguments from the forth one are captured by this
 
-# echo "Load model weights from: ${CHECKPOINT}"
-
 # test using the model trained on ref-youtube-vos directly
-
 python3 inference_davis_online_sam.py --binary  \
 --output_dir=${OUTPUT_DIR} --dataset_file davis \
 --online --use_SAM --sam_ckpt_path ${SAM_CHECKPOINT} --visualize ${PY_ARGS}

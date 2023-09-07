@@ -64,7 +64,7 @@ R-VOS Project
     ```bash
         bash ./script/online_davis_sam_prop_dino.sh ./outputs ./*SAM_checkpoint*/
     ```
-## (DO NOT USE. Still working since the structure is somehow different from DAVIS) Run our code (Inference on YTVOS)
+## (DO NOT USE. Still modifying, due to the somewhat different structure from DAVIS) Run our code (Inference on YTVOS)
 ### Note: This script will perform inference only, and the evaluation is done on the YTVOS server.
 * Inference by G-SAM only (can feed in any SAM checkpoint even with our LORA tuned checkpoint)
     ```bash
