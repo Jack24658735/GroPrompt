@@ -44,8 +44,29 @@ R-VOS Project
     # install GroundingDINO
     pip install -e .
     ```
-## Run our code
+## Run our code (Training)
 * Prepare data & model weight (e.g., trained SAM checkpoint)
 *  ```bash
-    bash online_ytvos_train_sam_lora.sh ./outputs/
+    bash ./script/online_ytvos_train_sam_lora.sh ./outputs ./*SAM_checkpoint*/
+    ```
+
+## Run our code (Inference on DAVIS)
+### Note: This script will perform inference and evaluation.
+* Inference by G-SAM only (can feed in any SAM checkpoint even with our LORA tuned checkpoint)
+    ```bash
+        bash ./script/online_davis_sam.sh ./outputs ./*SAM_checkpoint*/
+    ```
+* Inference by G-SAM + prop. mask with G-DINO aff. matrix
+    ```bash
+        bash ./script/online_davis_sam_prop_dino.sh ./outputs ./*SAM_checkpoint*/
+    ```
+* Inference by G-SAM + prop. bbox
+    ```bash
+        bash ./script/online_davis_sam_prop_dino.sh ./outputs ./*SAM_checkpoint*/
+    ```
+## Run our code (Inference on YTVOS)
+### Note: This script will perform inference only, and the evaluation is done on the YTVOS server.
+* Inference by G-SAM only (can feed in any SAM checkpoint even with our LORA tuned checkpoint)
+    ```bash
+        bash ./script/online_ytvos_sam.sh ./outputs ./*SAM_checkpoint*/
     ```

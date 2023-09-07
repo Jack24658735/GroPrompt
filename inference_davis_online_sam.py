@@ -45,6 +45,9 @@ from GroundingDINO.groundingdino.util.slconfig import SLConfig
 from GroundingDINO.groundingdino.util.utils import clean_state_dict, get_phrases_from_posmap
 from GroundingDINO.groundingdino.util.inference import annotate, load_image, predict
 
+import ipdb
+import csv
+
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # colormap
@@ -164,6 +167,23 @@ def main(args):
     print("Total inference time: %.4f s" % (total_time))
 
 
+# Define a function to save bounding box data to a CSV file
+def save_bbox_to_csv(output_csv, data):
+    # Check if the file exists to decide whether to write headers
+    write_headers = not os.path.exists(output_csv)
+
+    with open(output_csv, 'a', newline='') as file:
+        fieldnames = ["VideoName", "ImageName", "ObjectID", "xmin", "ymin", "xmax", "ymax", "Confidence", "Class"]
+        writer = csv.DictWriter(file, fieldnames=fieldnames)
+
+        if write_headers:
+            writer.writeheader()
+
+        for entry in data:
+            writer.writerow(entry)
+
+
+
 def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_prefix, img_folder, video_list):
     text = 'processor %d' % pid
     with lock:
@@ -189,10 +209,11 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
         ## 2. Building SAM Model and SAM Predictor
         device = torch.device('cuda:0')
         # sam_checkpoint = '/home/liujack/RVOS/Grounded-Segment-Anything/sam_vit_h_4b8939.pth'
-        sam_hq_checkpoint = '/home/liujack/RVOS/Grounded-Segment-Anything/sam_hq_vit_h.pth'
+        # sam_hq_checkpoint = '/home/liujack/RVOS/Grounded-Segment-Anything/sam_hq_vit_h.pth'
+        sam_hq_checkpoint = args.sam_ckpt_path
        
         # sam = build_sam(checkpoint=sam_checkpoint)
-        sam = build_sam_hq(checkpoint=sam_hq_checkpoint)
+        sam = build_sam_hq(checkpoint=sam_hq_checkpoint, mask_threshold=args.mask_threshold)
         # use_sam_hq
         sam.to(device=device)
         sam_predictor = SamPredictor(sam)
@@ -228,6 +249,8 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
 
     num_all_frames = 0
 
+    font_path = "fonts/OpenSans-Regular.ttf"
+    font = ImageFont.truetype(font_path, 30) # change the '30' to any size you want
     # 1. for each video
     for video in video_list:
         metas = []
@@ -249,10 +272,11 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
 
         # since there are 4 annotations
         num_obj = num_expressions // 4
-
+        image_cache_for_video = {}
         # 2. for each annotator
         for anno_id in range(4):  # 4 annotators
             all_exps = []
+            bbox_data = []
             anno_logits = []
             anno_masks = []  # [num_obj+1, video_len, h, w], +1 for background
             anno_boxes = []
@@ -291,7 +315,11 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
                     for t in clip_frames_ids:
                         frame = frames[t]
                         img_path = os.path.join(img_folder, video_name, frame + ".jpg")
-                        img = Image.open(img_path).convert('RGB')
+                        
+                        # Use the cached image if it's already loaded, otherwise load and cache it
+                        if img_path not in image_cache_for_video:
+                            image_cache_for_video[img_path] = Image.open(img_path).convert('RGB')
+                        img = image_cache_for_video[img_path].copy()
                         origin_w, origin_h = img.size
                         imgs.append(transform(img))  # list[Img]
 
@@ -320,15 +348,12 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
                                 else:
                                     max_logit, max_idx = torch.max(logits, dim=0)
                                     boxes = boxes[max_idx].unsqueeze(0) ## shape: (1, 4)
-                                    # TODO: perform seg. with SAM
                                     img_arr = np.asarray(img)
                                     sam_predictor.set_image(img_arr)
                                     # # box: normalized box xywh -> unnormalized xyxy
                                     H, W, _ = img_arr.shape
                                     boxes_xyxy = box_ops.box_cxcywh_to_xyxy(boxes) * torch.Tensor([W, H, W, H])
                                     # print(f'obj: {obj_id}, t: {t}, box shape: {boxes_xyxy.shape}')
-
-                                    ## TODO: select boxes with high logits and send into SAM
 
                                     # print('Before')
                                     # print(boxes_xyxy)
@@ -395,9 +420,15 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
                 if args.visualize:
                     exp_idx = 0
                     # for k in range(num_obj, 0, -1):
+                    image_cache = {}
                     for k in range(1, num_obj + 1):
                         img_path = os.path.join(img_folder, video_name, frames[f] + ".jpg")
-                        source_img = Image.open(img_path).convert('RGBA')
+                        # Use the cached image if it's already loaded, otherwise load and cache it
+                        if img_path not in image_cache:
+                            image_cache[img_path] = Image.open(img_path).convert('RGBA')
+
+                        # source_img = Image.open(img_path).convert('RGBA')
+                        source_img = image_cache[img_path].copy()
                         origin_w, origin_h = source_img.size
                         draw = ImageDraw.Draw(source_img)
                         # text = expressions[expression_list[i]]["exp"]
@@ -405,9 +436,6 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
                         # print(all_exps)
                         # print(len(all_exps))
                         text = all_exps[exp_idx]
-                        # font_path = "/home/liujack/RVOS/OnlineRefer/fonts/OpenSans-Regular.ttf"
-                        font_path = "fonts/OpenSans-Regular.ttf"
-                        font = ImageFont.truetype(font_path, 30) # change the '30' to any size you want
                         position = (10, 10)
                         draw.text(position, text, (255, 0, 0), font=font)
 
@@ -443,6 +471,21 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
 
                         exp_idx += 1
 
+                        bbox_info = {
+                            "VideoName": video_name,
+                            "ImageName": frames[f] + ".jpg",
+                            "ObjectID": k,
+                            "xmin": xmin,
+                            "ymin": ymin,
+                            "xmax": xmax,
+                            "ymax": ymax,
+                            "Confidence": anno_logits[k - 1][f].item()
+                        }
+                        bbox_data.append(bbox_info)
+            # Define the path to the output CSV file
+            output_csv = os.path.join(anno_save_path, "bounding_box_data.csv")
+            # Call the function to save the bounding box data to the CSV file
+            save_bbox_to_csv(output_csv, bbox_data)
 
         with lock:
             progress.update(1)

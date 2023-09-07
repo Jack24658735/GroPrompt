@@ -18,13 +18,13 @@
 # --use_checkpoint_for_more_frames \
 
 OUTPUT_DIR=$1
-# CHECKPOINT=$2
-PY_ARGS=${@:2}  # Any arguments from the forth one are captured by this
+SAM_CHECKPOINT=$2
+PY_ARGS=${@:3}  # Any arguments from the forth one are captured by this
 
 # echo "Load model weights from: ${CHECKPOINT}"
 # inference
 # CHECKPOINT=${OUTPUT_DIR}/checkpoint.pth
 python3 inference_ytvos_online_sam.py --with_box_refine --binary --freeze_text_encoder \
---output_dir=${OUTPUT_DIR} --online --use_SAM ${PY_ARGS}
+--output_dir=${OUTPUT_DIR} --online --use_SAM --sam_ckpt_path ${SAM_CHECKPOINT} ${PY_ARGS}
 
 echo "Working path is: ${OUTPUT_DIR}"

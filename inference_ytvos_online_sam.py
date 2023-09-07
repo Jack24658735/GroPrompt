@@ -183,10 +183,10 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
         ## 2. Building SAM Model and SAM Predictor
         device = torch.device('cuda:0')
         # sam_checkpoint = '/home/liujack/RVOS/Grounded-Segment-Anything/sam_vit_h_4b8939.pth'
-        sam_hq_checkpoint = '/home/liujack/RVOS/Grounded-Segment-Anything/sam_hq_vit_h.pth'
+        sam_hq_checkpoint = args.sam_ckpt_path
        
         # sam = build_sam(checkpoint=sam_checkpoint)
-        sam = build_sam_hq(checkpoint=sam_hq_checkpoint)
+        sam = build_sam_hq(checkpoint=sam_hq_checkpoint, mask_threshold=args.mask_threshold)
         # use_sam_hq
         sam.to(device=device)
         sam_predictor = SamPredictor(sam)
