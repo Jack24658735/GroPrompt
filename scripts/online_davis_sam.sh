@@ -8,7 +8,7 @@ PY_ARGS=${@:3}  # Any arguments from the forth one are captured by this
 
 # test using the model trained on ref-youtube-vos directly
 
-CUDA_VISIBLE_DEVICES=1, python3 inference_davis_online_sam.py --with_box_refine --binary --freeze_text_encoder \
+python3 inference_davis_online_sam.py --binary  \
 --output_dir=${OUTPUT_DIR} --dataset_file davis \
 --online --use_SAM --sam_ckpt_path ${SAM_CHECKPOINT} --visualize ${PY_ARGS}
 

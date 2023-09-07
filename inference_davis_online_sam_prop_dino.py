@@ -421,10 +421,10 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
         ## 2. Building SAM Model and SAM Predictor
         device = torch.device('cuda:0')
         # sam_checkpoint = '/home/liujack/RVOS/Grounded-Segment-Anything/sam_vit_h_4b8939.pth'
-        sam_hq_checkpoint = '/home/liujack/RVOS/Grounded-Segment-Anything/sam_hq_vit_h.pth'
+        sam_hq_checkpoint = args.sam_ckpt_path
        
         # sam = build_sam(checkpoint=sam_checkpoint)
-        sam = build_sam_hq(checkpoint=sam_hq_checkpoint)
+        sam = build_sam_hq(checkpoint=sam_hq_checkpoint, mask_threshold=args.mask_threshold)
         # use_sam_hq
         sam.to(device=device)
         sam.eval()
@@ -475,7 +475,8 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
     palette = Image.open(palette_img).getpalette()
 
     num_all_frames = 0
-
+    font_path = "fonts/OpenSans-Regular.ttf"
+    font = ImageFont.truetype(font_path, 30) # change the '30' to any size you want
     # 1. for each video
     for video in video_list:
         metas = []
@@ -498,9 +499,11 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
         # since there are 4 annotations
         num_obj = num_expressions // 4
 
+        image_cache_for_video = {}
         # 2. for each annotator
         for anno_id in range(4):  # 4 annotators
             all_exps = []
+            bbox_data = []
             anno_logits = []
             anno_masks = []  # [num_obj+1, video_len, h, w], +1 for background
             anno_boxes = []
@@ -552,7 +555,12 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
                         # print('current clip_id', clip_id)
                         frame = frames[t]
                         img_path = os.path.join(img_folder, video_name, frame + ".jpg")
-                        img = Image.open(img_path).convert('RGB')
+                        
+                        # Use the cached image if it's already loaded, otherwise load and cache it
+                        if img_path not in image_cache_for_video:
+                            image_cache_for_video[img_path] = Image.open(img_path).convert('RGB')
+                        # img = Image.open(img_path).convert('RGB')
+                        img = image_cache_for_video[img_path].copy()
                         origin_w, origin_h = img.size
                         imgs.append(transform(img))  # list[Img]
 
@@ -569,9 +577,6 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
                                     box_threshold=BOX_THRESHOLD, 
                                     text_threshold=TEXT_THRESHOLD
                                 )
-
-                                
-
                                 # Note!!! handle special cases for "india"
                                 if torch.numel(boxes) == 0:
                                     boxes_xyxy = torch.zeros((1, 4))
@@ -777,9 +782,15 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
                 if args.visualize:
                     exp_idx = 0
                     # for k in range(num_obj, 0, -1):
+                    image_cache = {}
                     for k in range(1, num_obj + 1):
                         img_path = os.path.join(img_folder, video_name, frames[f] + ".jpg")
-                        source_img = Image.open(img_path).convert('RGBA')
+                        # Use the cached image if it's already loaded, otherwise load and cache it
+                        if img_path not in image_cache:
+                            image_cache[img_path] = Image.open(img_path).convert('RGBA')
+
+                        # source_img = Image.open(img_path).convert('RGBA')
+                        source_img = image_cache[img_path].copy()
                         origin_w, origin_h = source_img.size
                         draw = ImageDraw.Draw(source_img)
                         # text = expressions[expression_list[i]]["exp"]
@@ -791,8 +802,6 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
 
                         # import ipdb; ipdb.set_trace()
                         # font_path = os.path.join(os.getcwd(),"fonts/OpenSans-Regular.ttf")
-                        font_path = "fonts/OpenSans-Regular.ttf"
-                        font = ImageFont.truetype(font_path, 30) # change the '30' to any size you want
                         position = (10, 10)
                         draw.text(position, text, (255, 0, 0), font=font)
 
@@ -824,6 +833,21 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
                         save_visualize_path = os.path.join(save_visualize_path_dir,  frames[f] + f'_{k}.png')
                         source_img.save(save_visualize_path)
                         exp_idx += 1
+                        bbox_info = {
+                            "VideoName": video_name,
+                            "ImageName": frames[f] + ".jpg",
+                            "ObjectID": k,
+                            "xmin": xmin,
+                            "ymin": ymin,
+                            "xmax": xmax,
+                            "ymax": ymax,
+                            "Confidence": anno_logits[k - 1][f].item()
+                        }
+                        bbox_data.append(bbox_info)
+            # Define the path to the output CSV file
+            output_csv = os.path.join(anno_save_path, "bounding_box_data.csv")
+            # Call the function to save the bounding box data to the CSV file
+            save_bbox_to_csv(output_csv, bbox_data)
         with lock:
             progress.update(1)
     result_dict[str(pid)] = num_all_frames
