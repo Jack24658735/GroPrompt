@@ -52,21 +52,23 @@ R-VOS Project
 
 ## Run our code (Inference on DAVIS)
 ### Note: This script will perform inference and evaluation.
-* Inference by G-SAM only (can feed in any SAM checkpoint even with our LORA tuned checkpoint)
+1. Please feed in the path of the SAM checkpoint and the path of LORA_SAM also.
+2. Note that the flag of `use_LORA_SAM` need to be enabled when using LORA_SAM.
+* Inference by G-SAM only
     ```bash
-        bash ./script/online_davis_sam.sh ./outputs ./*SAM_checkpoint*/
+        bash ./scripts/online_davis_sam.sh ./outputs ./*SAM_checkpoint*/ --use_LORA_SAM --lora_sam_ckpt_path ./*LORA_SAM_checkpoint*/
     ```
 * Inference by G-SAM + prop. mask with G-DINO aff. matrix
     ```bash
-        bash ./script/online_davis_sam_prop_dino.sh ./outputs ./*SAM_checkpoint*/
+        bash ./scripts/online_davis_sam_prop_dino.sh ./outputs ./*SAM_checkpoint*/
     ```
 * Inference by G-SAM + prop. bbox
     ```bash
-        bash ./script/online_davis_sam_prop_dino_bbox.sh ./outputs ./*SAM_checkpoint*/
+        bash ./scripts/online_davis_sam_prop_dino_bbox.sh ./outputs ./*SAM_checkpoint*/
     ```
 ## (DO NOT USE. Still modifying, due to the somewhat different structure from DAVIS) Run our code (Inference on YTVOS)
 ### Note: This script will perform inference only, and the evaluation is done on the YTVOS server.
 * Inference by G-SAM only (can feed in any SAM checkpoint even with our LORA tuned checkpoint)
     ```bash
-        bash ./script/online_ytvos_sam.sh ./outputs ./*SAM_checkpoint*/
+        bash ./scripts/online_ytvos_sam.sh ./outputs ./*SAM_checkpoint*/
     ```

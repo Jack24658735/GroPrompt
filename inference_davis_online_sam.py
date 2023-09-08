@@ -48,6 +48,8 @@ from GroundingDINO.groundingdino.util.inference import annotate, load_image, pre
 import ipdb
 import csv
 
+from sam_lora_image_encoder_mask_decoder import LoRA_Sam
+
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # colormap
@@ -211,13 +213,25 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
         # sam_checkpoint = '/home/liujack/RVOS/Grounded-Segment-Anything/sam_vit_h_4b8939.pth'
         # sam_hq_checkpoint = '/home/liujack/RVOS/Grounded-Segment-Anything/sam_hq_vit_h.pth'
         sam_hq_checkpoint = args.sam_ckpt_path
+        lora_sam_ckpt_path = args.lora_sam_ckpt_path
+        if args.use_LORA_SAM:
+            sam = build_sam_hq(checkpoint=sam_hq_checkpoint, mask_threshold=args.mask_threshold)
+            # use_sam_hq
+            sam.to(device=device)
+            lora_sam = LoRA_Sam(sam, args.lora_rank).cuda()
+            model = lora_sam
+            ckpt = torch.load(lora_sam_ckpt_path)
+            # print("=================================================================================")
+            model.load_state_dict(ckpt['model'])
+            # print("=================================================================================")
+            sam_predictor = SamPredictor(model.sam)
+            print("Load LoRA-SAM model from {}".format(lora_sam_ckpt_path))
+        else:
+            # sam = build_sam(checkpoint=sam_checkpoint)
+            sam = build_sam_hq(checkpoint=sam_hq_checkpoint, mask_threshold=args.mask_threshold)
+            sam.to(device=device)
+            sam_predictor = SamPredictor(sam)
        
-        # sam = build_sam(checkpoint=sam_checkpoint)
-        sam = build_sam_hq(checkpoint=sam_hq_checkpoint, mask_threshold=args.mask_threshold)
-        # use_sam_hq
-        print(sam)
-        sam.to(device=device)
-        sam_predictor = SamPredictor(sam)
     else:
         # model
         model, criterion, _ = build_model(args)

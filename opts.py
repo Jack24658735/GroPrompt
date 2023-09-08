@@ -172,6 +172,13 @@ def get_args_parser():
                         help = "num of pixels to decide prop. or not")
     parser.add_argument("--iou_alpha", type = float, default = 1.0,
                         help = "alpha for iou, determine which bbox should be used.")
+    # LORA SAM setting
+    parser.add_argument("--lora_rank", type = int, default = 4,
+                        help = "Rank of LORA")
+    parser.add_argument('--use_LORA_SAM', action='store_true')
+    parser.add_argument('--lora_sam_ckpt_path', type=str, default='')    
+
+    
     return parser
 
 
