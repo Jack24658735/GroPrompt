@@ -62,7 +62,7 @@ R-VOS Project
     ```
 * Inference by G-SAM + prop. bbox
     ```bash
-        bash ./script/online_davis_sam_prop_dino.sh ./outputs ./*SAM_checkpoint*/
+        bash ./script/online_davis_sam_prop_dino_bbox.sh ./outputs ./*SAM_checkpoint*/
     ```
 ## (DO NOT USE. Still modifying, due to the somewhat different structure from DAVIS) Run our code (Inference on YTVOS)
 ### Note: This script will perform inference only, and the evaluation is done on the YTVOS server.

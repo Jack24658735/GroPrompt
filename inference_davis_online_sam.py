@@ -215,6 +215,7 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
         # sam = build_sam(checkpoint=sam_checkpoint)
         sam = build_sam_hq(checkpoint=sam_hq_checkpoint, mask_threshold=args.mask_threshold)
         # use_sam_hq
+        print(sam)
         sam.to(device=device)
         sam_predictor = SamPredictor(sam)
     else:
