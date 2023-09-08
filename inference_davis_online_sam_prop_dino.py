@@ -393,6 +393,20 @@ def preprocess_frame_uvc(frame_num, img_folder, video_name):
     return out[0].cuda().unsqueeze(0)
 
 
+# Define a function to save bounding box data to a CSV file
+def save_bbox_to_csv(output_csv, data):
+    # Check if the file exists to decide whether to write headers
+    write_headers = not os.path.exists(output_csv)
+
+    with open(output_csv, 'a', newline='') as file:
+        fieldnames = ["VideoName", "ImageName", "ObjectID", "xmin", "ymin", "xmax", "ymax", "Confidence", "Class"]
+        writer = csv.DictWriter(file, fieldnames=fieldnames)
+
+        if write_headers:
+            writer.writeheader()
+
+        for entry in data:
+            writer.writerow(entry)
 
 
 def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_prefix, img_folder, video_list):
@@ -806,10 +820,13 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
                         draw.text(position, text, (255, 0, 0), font=font)
 
                         ### if UVC, then does not need to plot box
+                        draw_boxes = anno_boxes[k - 1][f].unsqueeze(0)
+                        # draw_boxes = rescale_bboxes(draw_boxes.detach(), (origin_w, origin_h)).tolist()
+                        xmin, ymin, xmax, ymax = draw_boxes[0]
                         if anno_frame_origin[k - 1][f] == 'SAM':
-                            draw_boxes = anno_boxes[k - 1][f].unsqueeze(0)
+                            # draw_boxes = anno_boxes[k - 1][f].unsqueeze(0)
                             # draw_boxes = rescale_bboxes(draw_boxes.detach(), (origin_w, origin_h)).tolist()
-                            xmin, ymin, xmax, ymax = draw_boxes[0]
+                            # xmin, ymin, xmax, ymax = draw_boxes[0]
                             draw.rectangle(((xmin, ymin), (xmax, ymax)), outline=tuple(color_list[k%len(color_list)]), width=2)
                             # plot the bbox score
                             plot_bbox_score = f'{anno_logits[k - 1][f].item():.2f}'

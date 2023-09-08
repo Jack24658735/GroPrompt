@@ -30,6 +30,7 @@ import multiprocessing as mp
 import threading
 
 from tools_refer.colormap import colormap
+import csv
 
 # import supervision as sv
 # import torchvision
@@ -58,36 +59,25 @@ transform = T.Compose([
     T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 ])
 
-### Settings for Grounding Dino & SAM
-# GroundingDINO config and checkpoint
-# GROUNDING_DINO_CONFIG_PATH = "GroundingDINO/groundingdino/config/GroundingDINO_SwinT_OGC.py"
-# GROUNDING_DINO_CHECKPOINT_PATH = "./groundingdino_swint_ogc.pth"
-
-# Segment-Anything checkpoint
-# SAM_ENCODER_VERSION = "vit_h"
-# SAM_CHECKPOINT_PATH = "./sam_vit_h_4b8939.pth"
-
-
 
 BOX_TRESHOLD = 0.3
 TEXT_TRESHOLD = 0.25
 
-def load_model_hf(args, repo_id, filename, ckpt_config_filename, device='cpu'):
-    # particularly import build_model since the function name is same as onlinerefer
-    if args.use_SAM:
-        from GroundingDINO.groundingdino.models import build_model
-    cache_config_file = hf_hub_download(repo_id=repo_id, filename=ckpt_config_filename)
-   
-    args_gdino = SLConfig.fromfile(cache_config_file) 
-    model = build_model(args_gdino)
-    args_gdino.device = device
+# Define a function to save bounding box data to a CSV file
+def save_bbox_to_csv(output_csv, data):
+    # Check if the file exists to decide whether to write headers
+    write_headers = not os.path.exists(output_csv)
 
-    cache_file = hf_hub_download(repo_id=repo_id, filename=filename)
-    checkpoint = torch.load(cache_file, map_location='cpu')
-    log = model.load_state_dict(clean_state_dict(checkpoint['model']), strict=False)
-    print("Model loaded from {} \n => {}".format(cache_file, log))
-    _ = model.eval()
-    return model   
+    with open(output_csv, 'a', newline='') as file:
+        fieldnames = ["VideoName", "ImageName", "ObjectID", "xmin", "ymin", "xmax", "ymax", "Confidence", "Class"]
+        writer = csv.DictWriter(file, fieldnames=fieldnames)
+
+        if write_headers:
+            writer.writeheader()
+
+        for entry in data:
+            writer.writerow(entry)
+
 
 def main(args):
     args.dataset_file = "davis"
@@ -174,58 +164,38 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
             ncols=0
         )
     torch.cuda.set_device(pid)
-    ## TODO: Build model with SAM
-    if args.use_SAM:
-        ## 1. Build Grounding dino
-        # Use this command for evaluate the Grounding DINO model
-        # Or you can download the model by yourself
-        print('\n**** USE SAM ****\n')
-        ckpt_repo_id = "ShilongLiu/GroundingDINO"
-        ckpt_filenmae = "groundingdino_swinb_cogcoor.pth"
-        ckpt_config_filename = "GroundingDINO_SwinB.cfg.py"
-        # grounding_dino_model = Model(model_config_path=GROUNDING_DINO_CONFIG_PATH, model_checkpoint_path=GROUNDING_DINO_CHECKPOINT_PATH)
-        grounding_dino_model = load_model_hf(args, ckpt_repo_id, ckpt_filenmae, ckpt_config_filename)
-
-        ## 2. Building SAM Model and SAM Predictor
-        device = torch.device('cuda:0')
-        sam_checkpoint = '/home/liujack/RVOS/Grounded-Segment-Anything/sam_vit_h_4b8939.pth'
-        sam = build_sam(checkpoint=sam_checkpoint)
-        sam.to(device=device)
-        sam_predictor = SamPredictor(sam)
-    else:
-        # model
-        model, criterion, _ = build_model(args)
-        device = args.device
-        model.to(device)
-
-        model_without_ddp = model
-        n_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
-
-        if pid == 0:
-            print('number of params:', n_parameters)
-
-        if args.resume:
-            checkpoint = torch.load(args.resume, map_location='cpu')
-            missing_keys, unexpected_keys = model_without_ddp.load_state_dict(checkpoint['model'], strict=False)
-            unexpected_keys = [k for k in unexpected_keys if not (k.endswith('total_params') or k.endswith('total_ops'))]
-            if len(missing_keys) > 0:
-                print('Missing Keys: {}'.format(missing_keys))
-            if len(unexpected_keys) > 0:
-                print('Unexpected Keys: {}'.format(unexpected_keys))
-        else:
-            raise ValueError('Please specify the checkpoint for inference.')
-
-        # get palette
-        palette_img = os.path.join(args.davis_path, "valid/Annotations/blackswan/00000.png")
-        palette = Image.open(palette_img).getpalette()
-
-        # start inference
-        num_all_frames = 0
-        model.eval()
-
    
+    model, criterion, _ = build_model(args)
+    device = args.device
+    model.to(device)
 
+    model_without_ddp = model
+    n_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
 
+    if pid == 0:
+        print('number of params:', n_parameters)
+
+    if args.resume:
+        checkpoint = torch.load(args.resume, map_location='cpu')
+        missing_keys, unexpected_keys = model_without_ddp.load_state_dict(checkpoint['model'], strict=False)
+        unexpected_keys = [k for k in unexpected_keys if not (k.endswith('total_params') or k.endswith('total_ops'))]
+        if len(missing_keys) > 0:
+            print('Missing Keys: {}'.format(missing_keys))
+        if len(unexpected_keys) > 0:
+            print('Unexpected Keys: {}'.format(unexpected_keys))
+    else:
+        raise ValueError('Please specify the checkpoint for inference.')
+
+    # get palette
+    palette_img = os.path.join(args.davis_path, "valid/Annotations/blackswan/00000.png")
+    palette = Image.open(palette_img).getpalette()
+
+    # start inference
+    num_all_frames = 0
+    model.eval()
+
+    font_path = "fonts/OpenSans-Regular.ttf"
+    font = ImageFont.truetype(font_path, 30) # change the '30' to any size you want
     # 1. for each video
     for video in video_list:
         metas = []
@@ -247,10 +217,13 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
 
         # since there are 4 annotations
         num_obj = num_expressions // 4
+        image_cache_for_video = {}
+
 
         # 2. for each annotator
         for anno_id in range(4):  # 4 annotators
             all_exps = []
+            bbox_data = []
             anno_logits = []
             anno_masks = []  # [num_obj+1, video_len, h, w], +1 for background
             anno_boxes = []
@@ -290,45 +263,6 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
                         origin_w, origin_h = img.size
                         imgs.append(transform(img))  # list[Img]
 
-                        ## TODO: maybe directly perform prediction here? 
-                        # so we can avoid the batch inference issues..
-                        if args.use_SAM:
-                            # TODO: perform detection with Grounding DINO
-                            # detect objects
-                            boxes, logits, phrases = predict(
-                                model=grounding_dino_model, 
-                                image=transform(img), 
-                                caption=exp,
-                                box_threshold=BOX_TRESHOLD, 
-                                text_threshold=TEXT_TRESHOLD
-                            )
-                            # annotated_frame = annotate(image_source=img, boxes=boxes, logits=logits, phrases=phrases)
-                            # annotated_frame = annotated_frame[...,::-1] # BGR to RGB
-
-                            # TODO: perform seg. with SAM
-                            img_arr = np.asarray(img)
-                            sam_predictor.set_image(img_arr)
-                            # box: normalized box xywh -> unnormalized xyxy
-                            H, W, _ = img_arr.shape
-                            boxes_xyxy = box_ops.box_cxcywh_to_xyxy(boxes) * torch.Tensor([W, H, W, H])
-                            transformed_boxes = sam_predictor.transform.apply_boxes_torch(boxes_xyxy, img_arr.shape[:2]).to(device)
-                            masks, _, _ = sam_predictor.predict_torch(
-                                        point_coords = None,
-                                        point_labels = None,
-                                        boxes = transformed_boxes,
-                                        multimask_output = False,
-                                    )
-                            print(masks[0][0].cpu().numpy())
-                            print(masks[0][0].cpu().numpy().shape)
-                            import pandas as pd
-                            df = pd.DataFrame(masks[0][0].cpu().numpy())
-                            df.to_csv(f'tmp.csv')
-                            exit()
-                            # Show masks is needed?
-                            # annotated_frame_with_mask = show_mask(masks[0][0].cpu(), annotated_frame)
-
-                        #### NOT DONE
-
                     imgs = torch.stack(imgs, dim=0).to(args.device)  # [video_len, 3, H, W]
                     img_h, img_w = imgs.shape[-2:]
                     size = torch.as_tensor([int(img_h), int(img_w)]).to(args.device)
@@ -340,9 +274,7 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
 
                     pred_logits = outputs["pred_logits"][0]  # [t, q, k]
                     pred_masks = outputs["pred_masks"][0]  # [t, q, h, w]
-                    # TODO: save pred box and plot also
-                    # pred_boxes = outputs["pred_boxes"][0]
-
+                    pred_boxes = outputs["pred_boxes"][0]  # [t, q, h, w]
 
                     # according to pred_logits, select the query index
                     pred_scores = pred_logits.sigmoid()  # [t, q, k]
@@ -354,25 +286,26 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
                     pred_masks = pred_masks.unsqueeze(0)
 
                     pred_masks = F.interpolate(pred_masks, size=(origin_h, origin_w), mode='bilinear',
-                                               align_corners=False)
+                                            align_corners=False)
                     pred_masks = pred_masks.sigmoid()[0]  # [t, h, w], NOTE: here mask is score
+
                     # store the clip results
                     pred_logits = pred_logits[range(clip_len), max_inds]  # [t, k]
-                    all_pred_logits.append(pred_logits)
+                    all_pred_logits.append(pred_logits.sigmoid())
                     all_pred_masks.append(pred_masks)
-
+                   
                     
                     # TODO: save pred box and plot
-                    # pred_boxes = pred_boxes[range(clip_len), max_inds]
-                    # all_pred_boxes.append(pred_boxes)
+                    pred_boxes = pred_boxes[range(clip_len), max_inds]
+                    all_pred_boxes.append(pred_boxes)
 
                 all_pred_logits = torch.cat(all_pred_logits, dim=0)  # (video_len, K)
                 all_pred_masks = torch.cat(all_pred_masks, dim=0)  # (video_len, h, w)
                 anno_logits.append(all_pred_logits)
                 anno_masks.append(all_pred_masks)
                 all_exps.append(exp)
-                # all_pred_boxes = torch.cat(all_pred_boxes, dim=0)
-                # anno_boxes.append(all_pred_boxes)
+                all_pred_boxes = torch.cat(all_pred_boxes, dim=0)
+                anno_boxes.append(all_pred_boxes)
 
                 # handle a complete image (all objects of a annotator)
             anno_logits = torch.stack(anno_logits)  # [num_obj, video_len, k]
@@ -382,48 +315,9 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
             background = 0.1 * torch.ones(1, t, h, w).to(args.device)
             anno_masks = torch.cat([background, anno_masks], dim=0)  # [num_obj+1, video_len, h, w]
             out_masks = torch.argmax(anno_masks, dim=0)  # int, the value indicate which object, [video_len, h, w]
-            # print('origin anno')
-            # print(anno_masks[:, 1, :, :])
-            # print('after anno')
-            # print(out_masks[:, :, :])
-            # exit()
+            
             out_masks = out_masks.detach().cpu().numpy().astype(np.uint8)  # [video_len, h, w]
-            # anno_masks = anno_masks.detach().cpu().numpy().astype(np.uint8)
-            # anno_boxes = torch.stack(anno_boxes)
-            # print(all_exps)
-            # print(len(all_exps))
-            # exit()
-            ### TODO: visualize implementation
-            # if args.visualize:
-            #     for t, frame in enumerate(frames):
-            #         img_path = os.path.join(img_folder, video_name, frame + ".jpg")
-            #         source_img = Image.open(img_path).convert('RGB')
-                    
-            #         # boxes do not exist in this implementation?
-            #         draw = ImageDraw.Draw(source_img)
-            #         # draw_boxes = anno_boxes[t].unsqueeze(0)
-            #         # draw_boxes = rescale_bboxes(draw_boxes.detach(), (origin_w, origin_h)).tolist()
-
-            #         # our_colors = np.array([[0, 255, 0], [255, 0, 0]]).astype('uint8').tolist()
-            #         # xmin, ymin, xmax, ymax = draw_boxes[0]
-            #         # draw.rectangle(((xmin, ymin), (xmax, ymax)), outline=tuple(our_colors[0]), width=2)
-
-            #         # draw text
-            #         ## Note: str(i) is the corresponding text annotation!
-            #         text = expressions[expression_list[i]]["exp"]
-            #         font_path = "/home/liujack/RVOS/OnlineRefer/fonts/OpenSans-Regular.ttf"
-            #         font = ImageFont.truetype(font_path, 30) # change the '30' to any size you want
-            #         position = (10, 10)
-            #         draw.text(position, text, (0, 0, 0), font=font)
-                    
-            #         # draw mask
-            #         source_img = vis_add_mask(source_img, out_masks[t], color_list[i%len(color_list)])
-            #         # save 
-            #         save_visualize_path_dir = os.path.join(save_visualize_path_prefix, video, str(i))
-            #         if not os.path.exists(save_visualize_path_dir):
-            #             os.makedirs(save_visualize_path_dir)
-            #         save_visualize_path = os.path.join(save_visualize_path_dir, frame + '.png')
-            #         source_img.save(save_visualize_path)
+            
             # save results
             anno_save_path = os.path.join(save_path_prefix, f"anno_{anno_id}", video)
             if not os.path.exists(anno_save_path):
@@ -435,20 +329,34 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
 
                 if args.visualize:
                     exp_idx = 0
+                    image_cache = {}
                     # for k in range(num_obj, 0, -1):
                     for k in range(1, num_obj + 1):
                         img_path = os.path.join(img_folder, video_name, frames[f] + ".jpg")
-                        source_img = Image.open(img_path).convert('RGBA')
+                        # Use the cached image if it's already loaded, otherwise load and cache it
+                        if img_path not in image_cache:
+                            image_cache[img_path] = Image.open(img_path).convert('RGBA')
+
+                        # source_img = Image.open(img_path).convert('RGBA')
+                        source_img = image_cache[img_path].copy()
+                        origin_w, origin_h = source_img.size
                         draw = ImageDraw.Draw(source_img)
                         # text = expressions[expression_list[i]]["exp"]
                         # Example: bike-packing => ['a black bike', 'a man wearing a cap']
                         # print(all_exps)
                         # print(len(all_exps))
                         text = all_exps[exp_idx]
-                        font_path = "/home/liujack/RVOS/OnlineRefer/fonts/OpenSans-Regular.ttf"
-                        font = ImageFont.truetype(font_path, 30) # change the '30' to any size you want
                         position = (10, 10)
                         draw.text(position, text, (255, 0, 0), font=font)
+
+                        draw_boxes = anno_boxes[k - 1][f].unsqueeze(0)
+                        draw_boxes = rescale_bboxes(draw_boxes.detach(), (origin_w, origin_h)).tolist()
+
+                        xmin, ymin, xmax, ymax = draw_boxes[0]
+                        draw.rectangle(((xmin, ymin), (xmax, ymax)), outline=tuple(color_list[k%len(color_list)]), width=2)
+                        # plot the bbox score
+                        plot_score = f'{anno_logits[k - 1][f].item():.2f}'
+                        draw.text((xmin, ymin), plot_score, (255, 0, 0), font=font)
                         
                         mask_arr = np.array(img_E)
                         plot_mask = np.zeros_like(mask_arr)
@@ -468,6 +376,21 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
                         source_img.save(save_visualize_path)
                         exp_idx += 1
 
+                        bbox_info = {
+                            "VideoName": video_name,
+                            "ImageName": frames[f] + ".jpg",
+                            "ObjectID": k,
+                            "xmin": xmin,
+                            "ymin": ymin,
+                            "xmax": xmax,
+                            "ymax": ymax,
+                            "Confidence": anno_logits[k - 1][f].item()
+                        }
+                        bbox_data.append(bbox_info)
+            # Define the path to the output CSV file
+            output_csv = os.path.join(anno_save_path, "bounding_box_data.csv")
+            # Call the function to save the bounding box data to the CSV file
+            save_bbox_to_csv(output_csv, bbox_data)
 
         with lock:
             progress.update(1)
