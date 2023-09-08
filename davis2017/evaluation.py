@@ -9,6 +9,8 @@ from davis2017.metrics import db_eval_boundary, db_eval_iou
 from davis2017 import utils
 from davis2017.results import Results
 from scipy.optimize import linear_sum_assignment
+import csv
+import os
 
 
 class DAVISEvaluation(object):
@@ -110,3 +112,119 @@ class DAVISEvaluation(object):
                 sys.stdout.write(seq + '\n')
                 sys.stdout.flush()
         return metrics_res
+    
+    @staticmethod
+    def masks_to_bboxes(masks):
+        """
+        Convert binary masks to bounding boxes.
+
+        Args:
+        - masks (numpy.ndarray): Binary masks with shape (num_objects, video_length, height, width).
+
+        Returns:
+        - bboxes (numpy.ndarray): Bounding boxes with shape (num_objects, video_length, 4).
+        """
+        num_objects, video_length, _, _ = masks.shape
+
+        # Initialize bounding boxes
+        bboxes = np.zeros((num_objects, video_length, 4))
+
+        for obj_idx in range(num_objects):
+            for frame_idx in range(video_length):
+                # Get the current mask
+                mask = masks[obj_idx, frame_idx]
+
+                # Check if the mask is not empty
+                if np.any(mask):
+                    rows = np.any(mask, axis=1)
+                    cols = np.any(mask, axis=0)
+                    rmin, rmax = np.where(rows)[0][[0, -1]]
+                    cmin, cmax = np.where(cols)[0][[0, -1]]
+
+                    bboxes[obj_idx, frame_idx] = [cmin, rmin, cmax, rmax]
+                else:
+                    bboxes[obj_idx, frame_idx] = [0, 0, 0, 0]  # Default to an empty bounding box
+
+        return bboxes
+    
+    @staticmethod
+    def load_csv_bboxes(file_path, num_objects, video_length):
+        """
+        Load bounding boxes from the CSV file and format them to match the shape of the masks_to_bboxes output.
+
+        Args:
+        - file_path (str): Path to the CSV file.
+        - num_objects (int): Number of distinct objects.
+        - video_length (int): Number of frames in the video.
+
+        Returns:
+        - bbox_data (numpy.ndarray): Bounding boxes with shape (num_objects, video_length, 4).
+        """
+        # Initialize empty array
+        bbox_data = np.zeros((num_objects, video_length, 4), dtype=np.int32)
+
+        with open(file_path, 'r') as f:
+            reader = csv.reader(f)
+            next(reader)  # Skip the header row
+
+            for row in reader:
+                obj_id = int(row[2]) - 1  # Subtracting 1 because Python index starts from 0
+                frame_idx = int(row[1].split('.')[0])  # Assuming frame filenames are like "00000.jpg", "00001.jpg", etc.
+                bbox = [
+                    float(row[3].replace("tensor(", "").replace(")", "")),
+                    float(row[4].replace("tensor(", "").replace(")", "")),
+                    float(row[5].replace("tensor(", "").replace(")", "")),
+                    float(row[6].replace("tensor(", "").replace(")", ""))
+                ]
+
+                bbox_data[obj_id, frame_idx] = bbox
+
+        return bbox_data
+
+    @staticmethod
+    def compute_iou(gt_bboxes, pred_bboxes):
+        """
+        Compute the Intersection over Union (IoU) between ground truth and predicted bounding boxes.
+
+        Args:
+        - gt_bboxes (numpy.ndarray): Ground truth bounding boxes with shape (num_objects, video_length, 4).
+        - pred_bboxes (numpy.ndarray): Predicted bounding boxes with the same shape.
+
+        Returns:
+        - ious (numpy.ndarray): IoUs with shape (num_objects, video_length).
+        """
+        # Determine the coordinates of the intersection rectangle
+        x1_inter = np.maximum(gt_bboxes[..., 0], pred_bboxes[..., 0])
+        y1_inter = np.maximum(gt_bboxes[..., 1], pred_bboxes[..., 1])
+        x2_inter = np.minimum(gt_bboxes[..., 2], pred_bboxes[..., 2])
+        y2_inter = np.minimum(gt_bboxes[..., 3], pred_bboxes[..., 3])
+
+        # Compute the area of intersection rectangle
+        inter_area = np.maximum(0, x2_inter - x1_inter + 1) * np.maximum(0, y2_inter - y1_inter + 1)
+
+        # Compute the area of both GT and predicted bounding boxes
+        gt_bbox_area = (gt_bboxes[..., 2] - gt_bboxes[..., 0] + 1) * (gt_bboxes[..., 3] - gt_bboxes[..., 1] + 1)
+        pred_bbox_area = (pred_bboxes[..., 2] - pred_bboxes[..., 0] + 1) * (pred_bboxes[..., 3] - pred_bboxes[..., 1] + 1)
+
+        # Compute IoU
+        iou = inter_area / (gt_bbox_area + pred_bbox_area - inter_area)
+
+        return iou
+    
+
+    def evaluate_bbox(self, res_path):
+        results = []
+        for seq in tqdm(list(self.dataset.get_sequences())):
+            all_gt_masks, _, all_masks_id = self.dataset.get_all_masks(seq, True)
+            all_gt_bboxes = self.masks_to_bboxes(all_gt_masks)
+            num_objs, video_len = all_gt_bboxes.shape[0], all_gt_bboxes.shape[1]
+            all_pred_bboxes = self.load_csv_bboxes(os.path.join(res_path, seq, 'bounding_box_data.csv'), num_objs, video_len)
+            ious = self.compute_iou(all_gt_bboxes, all_pred_bboxes)
+            for ii in range(all_gt_masks.shape[0]):
+                seq_name = f'{seq}_{ii+1}'
+                mIoU = np.mean(ious[ii])
+                results.append({
+                    "Sequence": seq_name,
+                    "m_iou": mIoU
+                })
+        return results
