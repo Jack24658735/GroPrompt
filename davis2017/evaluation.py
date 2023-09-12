@@ -210,7 +210,7 @@ class DAVISEvaluation(object):
         iou = inter_area / (gt_bbox_area + pred_bbox_area - inter_area)
 
         return iou
-    
+
 
     def evaluate_bbox(self, res_path):
         results = []
