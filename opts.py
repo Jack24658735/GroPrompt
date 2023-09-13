@@ -176,7 +176,11 @@ def get_args_parser():
     parser.add_argument("--lora_rank", type = int, default = 4,
                         help = "Rank of LORA")
     parser.add_argument('--use_LORA_SAM', action='store_true')
-    parser.add_argument('--lora_sam_ckpt_path', type=str, default='')    
+    parser.add_argument('--lora_sam_ckpt_path', type=str, default='')
+
+    # inference setting for DAVIS
+    parser.add_argument("--run_anno_id", type = int, default = 1,
+                        help = "Maximum running annotation id, max is 4 (i.e., anno0~3). Default is 1 to save time.")
 
     
     return parser

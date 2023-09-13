@@ -92,7 +92,7 @@ def load_model_hf(args, repo_id, filename, ckpt_config_filename, device='cpu'):
     log = model.load_state_dict(clean_state_dict(checkpoint['model']), strict=False)
     print("Model loaded from {} \n => {}".format(cache_file, log))
     _ = model.eval()
-    return model   
+    return model
 
 def main(args):
     args.dataset_file = "davis"
@@ -270,10 +270,7 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
     # TODO:
     from davis2017.evaluation import DAVISEvaluation
     val_dataset_for_gtbbox = DAVISEvaluation(davis_root='./data/ref-davis/DAVIS', task='unsupervised', gt_set='val')
-    # for seq in tqdm(list(val_dataset_for_gtbbox.dataset.get_sequences())):
-    #     all_gt_masks, _, all_masks_id = val_dataset_for_gtbbox.dataset.get_all_masks(seq, True)
-    #     all_gt_bboxes = val_dataset_for_gtbbox.masks_to_bboxes(all_gt_masks)
-    # all_seqs = list(val_dataset_for_gtbbox.dataset.get_sequences())
+    print(f'*** Num of anno. we run for DAVIS: {args.run_anno_id}***')
 
     # 1. for each video
     for video in video_list:
@@ -302,7 +299,7 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
         num_obj = num_expressions // 4
         image_cache_for_video = {}
         # 2. for each annotator
-        for anno_id in range(4):  # 4 annotators
+        for anno_id in range(args.run_anno_id):  # 4 annotators
             all_exps = []
             bbox_data = []
             anno_logits = []

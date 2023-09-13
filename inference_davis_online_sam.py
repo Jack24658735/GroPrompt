@@ -203,6 +203,9 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
         # Or you can download the model by yourself
         print('\n**** USE SAM ****\n')
         ckpt_repo_id = "ShilongLiu/GroundingDINO"
+        # ckpt_filenmae = "groundingdino_swint_ogc.pth"
+        
+        # ckpt_config_filename = "GroundingDINO_SwinT_OGC.cfg.py"
         ckpt_filenmae = "groundingdino_swinb_cogcoor.pth"
         ckpt_config_filename = "GroundingDINO_SwinB.cfg.py"
         # grounding_dino_model = Model(model_config_path=GROUNDING_DINO_CONFIG_PATH, model_checkpoint_path=GROUNDING_DINO_CHECKPOINT_PATH)
@@ -266,6 +269,7 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
 
     font_path = "fonts/OpenSans-Regular.ttf"
     font = ImageFont.truetype(font_path, 30) # change the '30' to any size you want
+    print(f'*** Num of anno. we run for DAVIS: {args.run_anno_id}***')
     # 1. for each video
     for video in video_list:
         metas = []
@@ -289,7 +293,7 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
         num_obj = num_expressions // 4
         image_cache_for_video = {}
         # 2. for each annotator
-        for anno_id in range(4):  # 4 annotators
+        for anno_id in range(args.run_anno_id):  # 4 annotators
             all_exps = []
             bbox_data = []
             anno_logits = []
