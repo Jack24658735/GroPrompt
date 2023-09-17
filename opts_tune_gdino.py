@@ -160,7 +160,8 @@ def get_args_parser():
     
     # finetune setting for G-DINO
     parser.add_argument('--finetune_gdino_mode', action='store_true')
-
+    parser.add_argument('--num_train_steps', default=-1, type=int,
+                        help="Number of steps for training, will override the epochs setting. Default: -1, following the epochs.")
 
     
     

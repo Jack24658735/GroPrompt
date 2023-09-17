@@ -209,10 +209,13 @@ def train_one_epoch_gdino(model: torch.nn.Module, criterion: torch.nn.Module,
     print_freq = 10
     n_iters = 0
     for samples, targets in metric_logger.log_every(data_loader, print_freq, header):
+        if args.num_train_steps != -1:
+            if n_iters > args.num_train_steps:
+                break
+        
         samples = samples.to(device)
         # captions = [t["caption"] for t in targets]
         targets_loss = utils.targets_to(targets, device) 
-
         # if args.online:
         #     loss_dict = model(samples, captions)
         # elif args.semi_online:
