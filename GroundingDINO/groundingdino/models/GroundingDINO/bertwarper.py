@@ -260,11 +260,11 @@ def generate_masks_with_special_tokens_and_transfer_map(tokenized, special_token
             c2t_maski[previous_col + 1 : col] = True
             cate_to_token_mask_list[row].append(c2t_maski)
         previous_col = col
-
-    cate_to_token_mask_list = [
-        torch.stack(cate_to_token_mask_listi, dim=0)
-        for cate_to_token_mask_listi in cate_to_token_mask_list
-    ]
+    ## NOTE: Workaround for empty cate_to_token_mask_list
+    # cate_to_token_mask_list = [
+    #     torch.stack(cate_to_token_mask_listi, dim=0)
+    #     for cate_to_token_mask_listi in cate_to_token_mask_list
+    # ]
 
     # # padding mask
     # padding_mask = tokenized['attention_mask']

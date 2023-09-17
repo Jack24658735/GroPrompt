@@ -43,14 +43,19 @@ class SetCriterion(nn.Module):
         targets dicts must contain the key "labels" containing a tensor of dim [nb_target_boxes]
         """
         assert 'pred_logits' in outputs
-        src_logits = outputs['pred_logits'] 
+        src_logits = outputs['pred_logits']
+        if src_logits.ndim < 4:
+            src_logits = src_logits.unsqueeze(0)
         _, nf, nq = src_logits.shape[:3]
+
         src_logits = rearrange(src_logits, 'b t q k -> b (t q) k')
 
         # judge the valid frames
         valid_indices = []
         valids = [target['valid'] for target in targets]
         for valid, (indice_i, indice_j) in zip(valids, indices): 
+            indice_i = indice_i.to(src_logits.device)
+            indice_j = indice_j.to(src_logits.device)
             valid_ind = valid.nonzero().flatten() 
             valid_i = valid_ind * nq + indice_i
             valid_j = valid_ind + indice_j * nf
@@ -71,8 +76,11 @@ class SetCriterion(nn.Module):
 
         target_classes_onehot = target_classes_onehot[:,:,:-1]
         loss_ce = sigmoid_focal_loss(src_logits, target_classes_onehot, num_boxes, alpha=self.focal_alpha, gamma=2) * src_logits.shape[1]
+        
+        ### WORKAROUND...
+        loss_ce = torch.nan_to_num(loss_ce)
+        
         losses = {'loss_ce': loss_ce}
-
         if log:
             # TODO this should probably be a separate loss, not hacked in this one here
             pass
@@ -85,7 +93,10 @@ class SetCriterion(nn.Module):
            The target boxes are expected in format (center_x, center_y, w, h), normalized by the image size.
         """
         assert 'pred_boxes' in outputs
+
         src_boxes = outputs['pred_boxes']  
+        if src_boxes.ndim < 4:
+            src_boxes = src_boxes.unsqueeze(0)
         bs, nf, nq = src_boxes.shape[:3]
         src_boxes = src_boxes.transpose(1, 2)  
 
@@ -94,7 +105,6 @@ class SetCriterion(nn.Module):
         src_boxes = src_boxes.flatten(0, 1)  # [b*t, 4]
 
         target_boxes = torch.cat([t['boxes'] for t in targets], dim=0)  # [b*t, 4]
-
         loss_bbox = F.l1_loss(src_boxes, target_boxes, reduction='none')
 
         losses = {}
@@ -242,8 +252,8 @@ class SetCriterion(nn.Module):
                     l_dict = {k + f'_{i}': v for k, v in l_dict.items()}
                     losses.update(l_dict)
 
-        mask_iou = self.iou_masks(outputs, targets, indices, num_boxes)
+        # mask_iou = self.iou_masks(outputs, targets, indices, num_boxes)
 
-        return losses, mask_iou
+        return losses, 0
 
 

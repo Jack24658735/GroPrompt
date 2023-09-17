@@ -281,9 +281,8 @@ class GroundingDINO(nn.Module):
             "position_ids": position_ids,  # bs, 195
             "text_self_attention_masks": text_self_attention_masks,  # bs, 195,195
         }
-
-        # import ipdb; ipdb.set_trace()
-
+        if samples.ndim != 4:
+            samples = samples.squeeze(1)
         if isinstance(samples, (list, torch.Tensor)):
             samples = nested_tensor_from_tensor_list(samples)
         features, poss = self.backbone(samples)

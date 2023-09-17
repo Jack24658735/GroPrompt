@@ -21,6 +21,7 @@ parser.add_argument('--task', type=str, help='Task to evaluate the results', def
 parser.add_argument('--results_path', type=str, help='Path to the folder containing the sequences folders',
                     required=True)
 parser.add_argument('--eval_bbox', action='store_true')
+parser.add_argument('--eval_mask', action='store_true')
 
 args, _ = parser.parse_known_args()
 csv_name_global = f'global_results-{args.set}.csv'
@@ -56,35 +57,35 @@ else:
         # Write the DataFrame to a CSV file
         df.to_csv(csv_name_bbox_path, index=False)
         print(f'Bbox results saved in {csv_name_bbox_path}')
-    
-    metrics_res = dataset_eval.evaluate(args.results_path)
-    J, F = metrics_res['J'], metrics_res['F']
+    if args.eval_mask:
+        metrics_res = dataset_eval.evaluate(args.results_path)
+        J, F = metrics_res['J'], metrics_res['F']
 
-    # Generate dataframe for the general results
-    g_measures = ['J&F-Mean', 'J-Mean', 'J-Recall', 'J-Decay', 'F-Mean', 'F-Recall', 'F-Decay']
-    final_mean = (np.mean(J["M"]) + np.mean(F["M"])) / 2.
-    g_res = np.array([final_mean, np.mean(J["M"]), np.mean(J["R"]), np.mean(J["D"]), np.mean(F["M"]), np.mean(F["R"]),
-                      np.mean(F["D"])])
-    g_res = np.reshape(g_res, [1, len(g_res)])
-    table_g = pd.DataFrame(data=g_res, columns=g_measures)
-    with open(csv_name_global_path, 'w') as f:
-        table_g.to_csv(f, index=False, float_format="%.5f")
-    print(f'Global results saved in {csv_name_global_path}')
+        # Generate dataframe for the general results
+        g_measures = ['J&F-Mean', 'J-Mean', 'J-Recall', 'J-Decay', 'F-Mean', 'F-Recall', 'F-Decay']
+        final_mean = (np.mean(J["M"]) + np.mean(F["M"])) / 2.
+        g_res = np.array([final_mean, np.mean(J["M"]), np.mean(J["R"]), np.mean(J["D"]), np.mean(F["M"]), np.mean(F["R"]),
+                        np.mean(F["D"])])
+        g_res = np.reshape(g_res, [1, len(g_res)])
+        table_g = pd.DataFrame(data=g_res, columns=g_measures)
+        with open(csv_name_global_path, 'w') as f:
+            table_g.to_csv(f, index=False, float_format="%.5f")
+        print(f'Global results saved in {csv_name_global_path}')
 
-    # Generate a dataframe for the per sequence results
-    seq_names = list(J['M_per_object'].keys())
-    seq_measures = ['Sequence', 'J-Mean', 'F-Mean']
-    J_per_object = [J['M_per_object'][x] for x in seq_names]
-    F_per_object = [F['M_per_object'][x] for x in seq_names]
-    table_seq = pd.DataFrame(data=list(zip(seq_names, J_per_object, F_per_object)), columns=seq_measures)
-    with open(csv_name_per_sequence_path, 'w') as f:
-        table_seq.to_csv(f, index=False, float_format="%.5f")
-    print(f'Per-sequence results saved in {csv_name_per_sequence_path}')
+        # Generate a dataframe for the per sequence results
+        seq_names = list(J['M_per_object'].keys())
+        seq_measures = ['Sequence', 'J-Mean', 'F-Mean']
+        J_per_object = [J['M_per_object'][x] for x in seq_names]
+        F_per_object = [F['M_per_object'][x] for x in seq_names]
+        table_seq = pd.DataFrame(data=list(zip(seq_names, J_per_object, F_per_object)), columns=seq_measures)
+        with open(csv_name_per_sequence_path, 'w') as f:
+            table_seq.to_csv(f, index=False, float_format="%.5f")
+        print(f'Per-sequence results saved in {csv_name_per_sequence_path}')
 
-# Print the results
-sys.stdout.write(f"--------------------------- Global results for {args.set} ---------------------------\n")
-print(table_g.to_string(index=False))
-sys.stdout.write(f"\n---------- Per sequence results for {args.set} ----------\n")
-print(table_seq.to_string(index=False))
-total_time = time() - time_start
-sys.stdout.write('\nTotal time:' + str(total_time))
+        # Print the results
+        sys.stdout.write(f"--------------------------- Global results for {args.set} ---------------------------\n")
+        print(table_g.to_string(index=False))
+        sys.stdout.write(f"\n---------- Per sequence results for {args.set} ----------\n")
+        print(table_seq.to_string(index=False))
+        total_time = time() - time_start
+        sys.stdout.write('\nTotal time:' + str(total_time))

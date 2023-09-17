@@ -16,7 +16,8 @@ from torch.utils.data import DataLoader, DistributedSampler
 import util.misc as utils
 import datasets.samplers as samplers
 from datasets import build_dataset, get_coco_api_from_dataset
-from engine import train_one_epoch_gdino, evaluate, evaluate_a2d, evaluate_online_a2d
+from engine import train_one_epoch_gdino, evaluate, evaluate_a2d, evaluate_online_a2d, train_one_epoch
+
 # from models import build_model
 
 from tools_refer.load_pretrained_weights import pre_trained_model_to_finetune
@@ -44,7 +45,7 @@ from GroundingDINO.groundingdino.models.GroundingDINO.groundingdino import Groun
 from GroundingDINO.groundingdino.models.GroundingDINO.backbone import build_backbone
 from GroundingDINO.groundingdino.models.GroundingDINO.transformer import build_transformer
 
-from models.matcher import build_matcher
+from models.matcher import build_matcher_GDINO
 from models.criterion import SetCriterion
 
 
@@ -54,7 +55,7 @@ def build_groundingdino_finetune(args, args_ours):
     # device = torch.device(args.device)
     backbone = build_backbone(args)
     transformer = build_transformer(args)
-    matcher = build_matcher(args_ours)
+    matcher = build_matcher_GDINO(args_ours)
     weight_dict = {}
     weight_dict['loss_ce'] = args_ours.cls_loss_coef
     weight_dict['loss_bbox'] = args_ours.bbox_loss_coef
@@ -179,6 +180,31 @@ def main(args):
 
     # for n, p in model_without_ddp.named_parameters():
     #     print(n)
+
+    ## Freeze backbone
+    for param in model.module.backbone.parameters():
+        param.requires_grad = False
+    ## Freeze transformer
+    # for param in model.module.transformer.parameters():
+    #     param.requires_grad = False
+    ## Freeze input_proj
+    # for param in model.module.input_proj.parameters():
+    #     param.requires_grad = False
+    ## Freeze bert
+    for param in model.module.bert.parameters():
+        param.requires_grad = False
+
+    # # Gather parameter counts for each module in the model
+    # module_params = [(name, param.numel()) for name, param in model.named_parameters()]
+
+    # # Sort modules by number of parameters in descending order
+    # sorted_modules = sorted(module_params, key=lambda x: x[1], reverse=True)
+
+    # # Print sorted list
+    # for name, param_count in sorted_modules:
+    #     print(f"Module: {name}, Parameters: {param_count}")
+    
+
     n_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
     total_parameters = sum(p.numel() for p in model.parameters())
     print('number of params for tuning:', n_parameters)
@@ -197,8 +223,6 @@ def main(args):
 
     # no validation ground truth for ytvos dataset
     dataset_train = build_dataset(args.dataset_file, image_set='train', args=args)
-
-    ipdb.set_trace()
 
 
     if args.distributed:
@@ -314,7 +338,7 @@ def main(args):
         # dataset_train.step_epoch()
         # test_stats = evaluate_online_a2d(model, data_loader_val, postprocessor, device, args)
         train_stats = train_one_epoch_gdino(
-            model, data_loader_train, optimizer, device, epoch,
+            model, criterion, data_loader_train, optimizer, device, epoch,
             args.clip_max_norm, args, writer)
         
         torch.cuda.empty_cache()
