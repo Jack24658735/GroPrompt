@@ -1,3 +1,6 @@
 outputs*
 *.zip
 *.pth
+*__pycache__*
+*.so
+*.egg-info
