@@ -182,8 +182,8 @@ def main(args):
     #     print(n)
 
     ## Freeze backbone
-    for param in model.module.backbone.parameters():
-        param.requires_grad = False
+    # for param in model.module.backbone.parameters():
+        # param.requires_grad = False
     ## Freeze transformer
     # for param in model.module.transformer.parameters():
     #     param.requires_grad = False
@@ -191,8 +191,17 @@ def main(args):
     # for param in model.module.input_proj.parameters():
     #     param.requires_grad = False
     ## Freeze bert
-    for param in model.module.bert.parameters():
+    # for param in model.module.bert.parameters():
+    #     param.requires_grad = False
+
+
+    ### TODO:
+    # Freeze all param.
+    for param in model.module.parameters():
         param.requires_grad = False
+    # Enable transformer decoder
+    for param in model.module.transformer.decoder.parameters():
+        param.requires_grad = True
 
     # # Gather parameter counts for each module in the model
     # module_params = [(name, param.numel()) for name, param in model.named_parameters()]
@@ -209,7 +218,6 @@ def main(args):
     total_parameters = sum(p.numel() for p in model.parameters())
     print('number of params for tuning:', n_parameters)
     print('Total number of params for original G-DINO:', total_parameters)
-
 
     param_dicts = [
         {

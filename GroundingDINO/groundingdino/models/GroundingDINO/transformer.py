@@ -268,6 +268,7 @@ class Transformer(nn.Module):
             position_ids=text_dict["position_ids"],
             text_self_attention_masks=text_dict["text_self_attention_masks"],
         )
+
         #########################################################
         # End Encoder
         # - memory: bs, \sum{hw}, c
@@ -282,17 +283,18 @@ class Transformer(nn.Module):
         #         import ipdb; ipdb.set_trace()
 
         if self.two_stage_type == "standard":
+            # output_memory: (1, 5100, 256)
+            # output_proposals: (1, 5100, 4)
             output_memory, output_proposals = gen_encoder_output_proposals(
                 memory, mask_flatten, spatial_shapes
             )
             output_memory = self.enc_output_norm(self.enc_output(output_memory))
 
             if text_dict is not None:
+                # we run here
                 enc_outputs_class_unselected = self.enc_out_class_embed(output_memory, text_dict)
             else:
                 enc_outputs_class_unselected = self.enc_out_class_embed(output_memory)
-            ## TODO:
-            # return "enc_outputs_class_unselected" as the affn. input?
 
             topk_logits = enc_outputs_class_unselected.max(-1)[0]
             enc_outputs_coord_unselected = (
@@ -303,19 +305,25 @@ class Transformer(nn.Module):
             topk_proposals = torch.topk(topk_logits, topk, dim=1)[1]  # bs, nq
 
             # gather boxes
+            # NOTE: Select from (1, 5100, 4)
+            # refpoint_embed_undetach: (1, 900, 4)
             refpoint_embed_undetach = torch.gather(
                 enc_outputs_coord_unselected, 1, topk_proposals.unsqueeze(-1).repeat(1, 1, 4)
             )  # unsigmoid
             refpoint_embed_ = refpoint_embed_undetach.detach()
+            # NOTE: init_box_proposal is not used in our design in the end...
             init_box_proposal = torch.gather(
                 output_proposals, 1, topk_proposals.unsqueeze(-1).repeat(1, 1, 4)
             ).sigmoid()  # sigmoid
 
             # gather tgt
+            # NOTE: tgt_undetach: (1, 900, 256)
             tgt_undetach = torch.gather(
                 output_memory, 1, topk_proposals.unsqueeze(-1).repeat(1, 1, self.d_model)
             )
             if self.embed_init_tgt:
+                # always run here due to the author config.
+                # tgt_: (900, 256)
                 tgt_ = (
                     self.tgt_embed.weight[:, None, :].repeat(1, bs, 1).transpose(0, 1)
                 )  # nq, bs, d_model
@@ -327,6 +335,7 @@ class Transformer(nn.Module):
                 tgt = torch.cat([tgt, tgt_], dim=1)
             else:
                 refpoint_embed, tgt = refpoint_embed_, tgt_
+
 
         elif self.two_stage_type == "no":
             tgt_ = (
@@ -363,6 +372,7 @@ class Transformer(nn.Module):
         #########################################################
         # Begin Decoder
         #########################################################
+        ## NOTE: hs: a list of length of 6, each of them shape: (1, 900, 256)
         hs, references = self.decoder(
             tgt=tgt.transpose(0, 1),
             memory=memory.transpose(0, 1),

@@ -332,6 +332,7 @@ class GroundingDINO(nn.Module):
             ]
         )
         ## NOTE: about 0.35..
+        import ipdb; ipdb.set_trace()
         out = {"pred_logits": outputs_class[-1], "pred_boxes": outputs_coord_list[-1], "intermediate_out": features[1].tensors}
         
 
