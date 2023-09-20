@@ -68,7 +68,8 @@ def build_groundingdino_finetune(args, args_ours):
     #         aux_weight_dict.update({k + f'_{i}': v for k, v in weight_dict.items()})
     #     weight_dict.update(aux_weight_dict)
 
-    losses = ['labels', 'boxes']
+    # losses = ['labels', 'boxes']
+    losses = ['boxes']
     criterion = SetCriterion(
         num_classes,
         matcher=matcher,

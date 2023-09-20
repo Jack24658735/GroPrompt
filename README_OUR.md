@@ -44,6 +44,27 @@ R-VOS Project
     # install GroundingDINO
     pip install -e .
     ```
+
+# G-DINO
+## Run our code (Training)
+* Prepare data & model weight (e.g., trained G-DINO checkpoint)
+* Note: num_train_steps will override the epochs setting. If you want to use epoch setting only, please set num_train_steps to -1 (i.e., the default value).
+    ```bash
+    bash ./scripts/online_ytvos_train_gdino.sh ./outputs --finetune_gdino_mode --batch_size 1 --epochs 1 --num_train_steps 10
+    ```
+
+## Run our code (Inference on DAVIS)
+* Note: the default will run 1 annotation to save time. If you want to run all annotations, please set `--run_anno_id 4`.
+* Inference by G-DINO only
+    ```bash
+        bash ./scripts/online_davis_dino.sh ./outputs_dino --g_dino_ckpt_path ./checkpoint.pth --use_trained_gdino
+    ```
+* Inference by our trained G-DINO + SAM
+    ```bash
+        bash ./scripts/online_davis_sam.sh ./outputs_gsam ./*SAM_checkpoint*/ --use_trained_gdino --g_dino_ckpt_path ./*GDINO_checkpoint*/ 
+    ```
+
+# SAM
 ## Run our code (Training)
 * Prepare data & model weight (e.g., trained SAM checkpoint)
 *  ```bash
