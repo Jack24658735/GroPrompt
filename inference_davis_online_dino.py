@@ -31,7 +31,6 @@ import threading
 
 from tools_refer.colormap import colormap
 
-import supervision as sv
 import torchvision
 from groundingdino.util.inference import Model
 from segment_anything import sam_model_registry, SamPredictor
@@ -45,10 +44,8 @@ from GroundingDINO.groundingdino.util.slconfig import SLConfig
 from GroundingDINO.groundingdino.util.utils import clean_state_dict, get_phrases_from_posmap
 from GroundingDINO.groundingdino.util.inference import annotate, load_image, predict
 
-import ipdb
 import csv
 
-from sam_lora_image_encoder_mask_decoder import LoRA_Sam
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 

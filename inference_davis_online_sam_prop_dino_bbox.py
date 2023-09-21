@@ -31,7 +31,6 @@ import threading
 
 from tools_refer.colormap import colormap
 
-import supervision as sv
 import torchvision
 # from groundingdino.util.inference import Model
 from segment_anything import sam_model_registry, SamPredictor
