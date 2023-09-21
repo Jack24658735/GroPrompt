@@ -95,13 +95,18 @@ class SetCriterion(nn.Module):
         assert 'pred_boxes' in outputs
 
         src_boxes = outputs['pred_boxes']  
-        if src_boxes.ndim < 4:
-            src_boxes = src_boxes.unsqueeze(0)
+
         bs, nf, nq = src_boxes.shape[:3]
-        src_boxes = src_boxes.transpose(1, 2)  
+       
+        # src_boxes = src_boxes.transpose(1, 2) 
+        # bs=1: [1, 900, 1, 4]
+        # bs=2: [1, 900, 2, 4]
+        # target_boxes = torch.cat([t['boxes'][i] for t, (_, i) in zip(targets, indices)], dim=0)
 
         idx = self._get_src_permutation_idx(indices)
-        src_boxes = src_boxes[idx]  
+        src_boxes = src_boxes[idx]
+        if src_boxes.ndim < 3:
+            src_boxes = src_boxes.unsqueeze(0)
         src_boxes = src_boxes.flatten(0, 1)  # [b*t, 4]
 
         target_boxes = torch.cat([t['boxes'] for t in targets], dim=0)  # [b*t, 4]

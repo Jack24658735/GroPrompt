@@ -87,13 +87,6 @@ def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
     return {k: meter.global_avg for k, meter in metric_logger.meters.items()}
 
 
-def calc_loss(outputs, low_res_label_batch, ce_loss, dice_loss, dice_weight:float=0.8):
-    low_res_logits = outputs['low_res_logits']
-    loss_ce = ce_loss(low_res_logits, low_res_label_batch[:].long())
-    loss_dice = dice_loss(low_res_logits, low_res_label_batch, softmax=True)
-    loss = (1 - dice_weight) * loss_ce + dice_weight * loss_dice
-    return loss, loss_ce, loss_dice
-
 
 def train_one_epoch_sam(model: torch.nn.Module,
                     data_loader: Iterable, optimizer: torch.optim.Optimizer,
@@ -206,7 +199,7 @@ def train_one_epoch_gdino(model: torch.nn.Module, criterion: torch.nn.Module,
     metric_logger = utils.MetricLogger(delimiter="  ")
     metric_logger.add_meter('lr', utils.SmoothedValue(window_size=1, fmt='{value:.6f}'))
     header = 'Exp: {}, Epoch: [{}]'.format(args.output_dir, epoch)
-    print_freq = 10
+    print_freq = 1000
     n_iters = 0
     for samples, targets in metric_logger.log_every(data_loader, print_freq, header):
         if args.num_train_steps != -1:
