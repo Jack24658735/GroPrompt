@@ -31,11 +31,7 @@ import threading
 
 from tools_refer.colormap import colormap
 
-import torchvision
-from groundingdino.util.inference import Model
-from segment_anything import sam_model_registry, SamPredictor
 from huggingface_hub import hf_hub_download
-from segment_anything import build_sam, SamPredictor, build_sam_hq
 
 # Grounding DINO
 # import GroundingDINO.groundingdino.datasets.transforms as T
