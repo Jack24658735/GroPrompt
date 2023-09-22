@@ -41,6 +41,9 @@ from GroundingDINO.groundingdino.util.utils import clean_state_dict, get_phrases
 from GroundingDINO.groundingdino.util.inference import annotate, load_image, predict
 
 import csv
+import transformers
+
+transformers.logging.set_verbosity(transformers.logging.ERROR)
 
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -85,7 +88,8 @@ def main(args):
     args.masks = True
     args.batch_size == 1
     print("Inference only supports for batch size = 1")
-    print(args)
+    if args.use_trained_gdino:
+        print(f'*** Loaded from {args.g_dino_ckpt_path} ***')
 
     # fix the seed for reproducibility
     seed = args.seed + utils.get_rank()

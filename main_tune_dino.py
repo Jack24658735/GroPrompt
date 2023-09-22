@@ -48,6 +48,10 @@ from GroundingDINO.groundingdino.models.GroundingDINO.transformer import build_t
 from models.matcher import build_matcher_GDINO
 from models.criterion import SetCriterion
 
+import subprocess
+import os
+import pandas as pd
+
 
 def build_groundingdino_finetune(args, args_ours):
      ## TODO:
@@ -340,6 +344,8 @@ def main(args):
     print("Start training")
     writer = SummaryWriter('log/{}'.format(args.output_dir.split('/')[-1]))
     start_time = time.time()
+    best_epoch = 0
+    best_score = 0
     for epoch in range(args.start_epoch, args.epochs):
         if args.distributed:
             sampler_train.set_epoch(epoch)
@@ -369,8 +375,53 @@ def main(args):
                 }, checkpoint_path)
 
         log_stats = {**{f'train_{k}': v for k, v in train_stats.items()},
-                     'epoch': epoch,
-                     'n_parameters': n_parameters}
+                     'n_parameters': n_parameters,
+                     'epoch': epoch}
+        ## TODO: add inference for DAVIS
+        infer_dir = os.path.join(output_dir, f"epoch_{epoch}")
+        anno0_dir = os.path.join(infer_dir, "valid", "anno_0")
+        
+        cmd = [
+            'python3',
+            'inference_davis_online_dino.py',
+            '--binary',
+            '--output_dir=' + infer_dir,
+            '--dataset_file=davis',
+            '--online',
+            '--visualize',
+            '--use_trained_gdino',
+            # setup the model path for loading
+            '--g_dino_ckpt_path=' + f'{checkpoint_paths[-1]}'
+        ]
+        # Run the command
+        subprocess.run(cmd)
+        ## TODO: add evaluation for DAVIS
+        # Passing arguments to the bash script
+        cmd_eval = [
+            'python3',
+            'eval_davis.py',
+            '--results_path=' + anno0_dir,
+            '--eval_bbox'
+        ]
+        subprocess.run(cmd_eval)
+
+        # Obtain iou score
+        file_path = os.path.join(anno0_dir, 'bbox_results-val.csv')
+
+        # Read the CSV file into a DataFrame
+        df_iou = pd.read_csv(file_path)
+
+        # Fetch the value corresponding to "Global"
+        iou_score = df_iou[df_iou['Sequence'] == 'Global']['m_iou'].iloc[0]
+        
+        if iou_score > best_score:
+            best_score = iou_score
+            best_epoch = epoch
+        log_stats = {**log_stats, 
+                     'iou_score': iou_score, 
+                     'best_epoch': best_epoch,
+                     'best_score': best_score}
+
 
         # if args.dataset_file == 'a2d':
         #     if args.semi_online:
@@ -382,7 +433,7 @@ def main(args):
 
         if args.output_dir and utils.is_main_process():
             with (output_dir / "log.txt").open("a") as f:
-                f.write(json.dumps(log_stats) + "\n")
+                f.write(json.dumps(log_stats, indent=4) + "\n")
 
 
     total_time = time.time() - start_time
