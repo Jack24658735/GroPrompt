@@ -81,25 +81,25 @@ def get_args_parser():
     parser.add_argument('--no_aux_loss', dest='aux_loss', action='store_false',
                         help="Disables auxiliary decoding losses (loss at each layer)")
     # * Matcher
-    parser.add_argument('--set_cost_class', default=2, type=float,
+    parser.add_argument('--set_cost_class', default=1, type=float,
                         help="Class coefficient in the matching cost")
     parser.add_argument('--set_cost_bbox', default=5, type=float,
                         help="L1 box coefficient in the matching cost")
     parser.add_argument('--set_cost_giou', default=2, type=float,
                         help="giou box coefficient in the matching cost")
-    parser.add_argument('--set_cost_mask', default=2, type=float,
+    parser.add_argument('--set_cost_mask', default=0, type=float,
                         help="mask coefficient in the matching cost")
-    parser.add_argument('--set_cost_dice', default=5, type=float,
+    parser.add_argument('--set_cost_dice', default=0, type=float,
                         help="mask coefficient in the matching cost")
     # * Loss coefficients
-    parser.add_argument('--mask_loss_coef', default=2, type=float)
-    parser.add_argument('--dice_loss_coef', default=5, type=float)
-    parser.add_argument('--cls_loss_coef', default=2, type=float)
+    parser.add_argument('--mask_loss_coef', default=0, type=float)
+    parser.add_argument('--dice_loss_coef', default=0, type=float)
+    parser.add_argument('--cls_loss_coef', default=0, type=float)
     parser.add_argument('--bbox_loss_coef', default=5, type=float)
     parser.add_argument('--giou_loss_coef', default=2, type=float)
-    parser.add_argument('--eos_coef', default=0.1, type=float,
+    parser.add_argument('--eos_coef', default=0, type=float,
                         help="Relative classification weight of the no-object class")
-    parser.add_argument('--focal_alpha', default=0.25, type=float)
+    parser.add_argument('--focal_alpha', default=0, type=float)
 
     # dataset parameters
     # ['ytvos', 'davis', 'a2d', 'jhmdb', 'refcoco', 'refcoco+', 'refcocog', 'all']
@@ -163,7 +163,8 @@ def get_args_parser():
     parser.add_argument('--num_train_steps', default=-1, type=int,
                         help="Number of steps for training, will override the epochs setting. Default: -1, following the epochs.")
 
-    
+    # finetune w/ LORA
+    parser.add_argument('--tune_gdino_LORA', action='store_true')
     
 
     return parser

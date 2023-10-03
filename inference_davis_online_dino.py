@@ -100,6 +100,8 @@ def main(args):
     split = args.split
     # save path
     output_dir = args.output_dir
+    import ipdb;
+    ipdb.set_trace()
     save_path_prefix = os.path.join(output_dir, split)
     if not os.path.exists(save_path_prefix):
         os.makedirs(save_path_prefix)

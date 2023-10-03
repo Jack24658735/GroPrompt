@@ -208,6 +208,12 @@ def main(args):
     for param in model.module.transformer.decoder.parameters():
         param.requires_grad = True
 
+    # TODO: LORA implementation
+    if args.tune_gdino_LORA:
+        # TODO: tune the LORA
+        pass
+
+
     # # Gather parameter counts for each module in the model
     # module_params = [(name, param.numel()) for name, param in model.named_parameters()]
 
@@ -380,47 +386,47 @@ def main(args):
         ## TODO: add inference for DAVIS
         infer_dir = os.path.join(output_dir, f"epoch_{epoch}")
         anno0_dir = os.path.join(infer_dir, "valid", "anno_0")
-        
-        cmd = [
-            'python3',
-            'inference_davis_online_dino.py',
-            '--binary',
-            '--output_dir=' + infer_dir,
-            '--dataset_file=davis',
-            '--online',
-            '--visualize',
-            '--use_trained_gdino',
-            # setup the model path for loading
-            '--g_dino_ckpt_path=' + f'{checkpoint_paths[-1]}'
-        ]
-        # Run the command
-        subprocess.run(cmd)
-        ## TODO: add evaluation for DAVIS
-        # Passing arguments to the bash script
-        cmd_eval = [
-            'python3',
-            'eval_davis.py',
-            '--results_path=' + anno0_dir,
-            '--eval_bbox'
-        ]
-        subprocess.run(cmd_eval)
+        if utils.is_main_process():
+            cmd = [
+                'python3',
+                'inference_davis_online_dino.py',
+                '--binary',
+                '--output_dir=' + infer_dir,
+                '--dataset_file=davis',
+                '--online',
+                '--visualize',
+                '--use_trained_gdino',
+                # setup the model path for loading
+                '--g_dino_ckpt_path=' + f'{checkpoint_paths[-1]}'
+            ]
+            # Run the command
+            subprocess.run(cmd)
+            ## TODO: add evaluation for DAVIS
+            # Passing arguments to the bash script
+            cmd_eval = [
+                'python3',
+                'eval_davis.py',
+                '--results_path=' + anno0_dir,
+                '--eval_bbox'
+            ]
+            subprocess.run(cmd_eval)
 
-        # Obtain iou score
-        file_path = os.path.join(anno0_dir, 'bbox_results-val.csv')
+            # Obtain iou score
+            file_path = os.path.join(anno0_dir, 'bbox_results-val.csv')
 
-        # Read the CSV file into a DataFrame
-        df_iou = pd.read_csv(file_path)
+            # Read the CSV file into a DataFrame
+            df_iou = pd.read_csv(file_path)
 
-        # Fetch the value corresponding to "Global"
-        iou_score = df_iou[df_iou['Sequence'] == 'Global']['m_iou'].iloc[0]
-        
-        if iou_score > best_score:
-            best_score = iou_score
-            best_epoch = epoch
-        log_stats = {**log_stats, 
-                     'iou_score': iou_score, 
-                     'best_epoch': best_epoch,
-                     'best_score': best_score}
+            # Fetch the value corresponding to "Global"
+            iou_score = df_iou[df_iou['Sequence'] == 'Global']['m_iou'].iloc[0]
+            
+            if iou_score > best_score:
+                best_score = iou_score
+                best_epoch = epoch
+            log_stats = {**log_stats, 
+                        'iou_score': iou_score, 
+                        'best_epoch': best_epoch,
+                        'best_score': best_score}
 
 
         # if args.dataset_file == 'a2d':

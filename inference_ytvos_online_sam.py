@@ -79,6 +79,8 @@ def main(args):
     args.masks = True
     args.batch_size == 1
     print("Inference only supports for batch size = 1")
+    if args.use_trained_gdino:
+        print(f'*** Loaded from {args.g_dino_ckpt_path} ***')
 
     # fix the seed for reproducibility
     seed = args.seed + utils.get_rank()
@@ -179,6 +181,12 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
         ckpt_config_filename = "GroundingDINO_SwinB.cfg.py"
         # grounding_dino_model = Model(model_config_path=GROUNDING_DINO_CONFIG_PATH, model_checkpoint_path=GROUNDING_DINO_CHECKPOINT_PATH)
         grounding_dino_model = load_model_hf(args, ckpt_repo_id, ckpt_filenmae, ckpt_config_filename)
+        # load again for our trained G-DINO
+        if args.use_trained_gdino:
+            checkpoint = torch.load(args.g_dino_ckpt_path, map_location='cpu')
+            log = grounding_dino_model.load_state_dict(clean_state_dict(checkpoint['model']), strict=False)
+            print("Model loaded from {} \n => {}".format(args.g_dino_ckpt_path, log))
+            _ = grounding_dino_model.eval()
 
         ## 2. Building SAM Model and SAM Predictor
         device = torch.device('cuda:0')
