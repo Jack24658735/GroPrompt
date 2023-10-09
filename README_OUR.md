@@ -44,8 +44,32 @@ R-VOS Project
     # install GroundingDINO
     pip install -e .
     ```
+## Extra setup for mmdetection
+1. Install mmdet & mmengine
+    ```bash
+    cd mmdetection
+    pip install -v -e .
+    ```
+    ```bash
+    cd mmengine
+    pip install -v -e .
+    ```
 
 # G-DINO
+
+## Run our code in mmdetection (Training)
+* Prepare data & model weight (e.g., trained G-DINO checkpoint)
+    * Please download from https://download.openmmlab.com/mmdetection/v3.0/grounding_dino/groundingdino_swinb_cogcoor_mmdet-55949c9c.pth
+    * The saved path should be `"./R-VOS/mm_weights/groundingdino_swinb_cogcoor_mmdet-55949c9c.pth"` (if you change it, you should refer to the path in the config file, which is under `"./R-VOS/mmdetection/configs/grounding_dino/grounding_dino_swin-b_rvos.py"`)
+* Run the following command:
+    ```bash
+    # train on single GPU
+    python mmdetection/tools/train.py $config_path --work-dir $output_path --auto-scale-lr
+
+    # train on multiple GPUs
+    bash mmdetection/tools/dist_train.sh $config_path /*NUM_GPU*/ --work-dir $output_path --auto-scale-lr
+    ```
+
 ## Run our code (Training)
 * Prepare data & model weight (e.g., trained G-DINO checkpoint)
 * Note: num_train_steps will override the epochs setting. If you want to use epoch setting only, please set num_train_steps to -1 (i.e., the default value).

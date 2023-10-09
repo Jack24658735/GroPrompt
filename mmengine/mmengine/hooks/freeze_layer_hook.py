@@ -19,6 +19,8 @@ class FreezeLayerHook(Hook):
             runner (Runner): The runner of the training process.
         """
         model = runner.model
+        if isinstance(model, torch.nn.parallel.DistributedDataParallel):
+            model = model.module
         for param in model.parameters():
             param.requires_grad = False
         # Enable transformer decoder
