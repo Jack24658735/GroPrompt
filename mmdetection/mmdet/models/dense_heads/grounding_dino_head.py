@@ -578,10 +578,15 @@ class GroundingDINOHead(DINOHead):
         # DETR regress the relative position of boxes (cxcywh) in the image,
         # thus the learning target is normalized by the image size. So here
         # we need to re-scale them for calculating IoU loss
+        
+        ### liujack: this is the change for num_frames support
+        factors = factors.repeat(bbox_preds.shape[0], 1)
+        bbox_targets = bbox_targets.repeat(bbox_preds.shape[0], 1)
+        bbox_weights = bbox_weights.repeat(bbox_preds.shape[0], 1)
+
         bbox_preds = bbox_preds.reshape(-1, 4)
         bboxes = bbox_cxcywh_to_xyxy(bbox_preds) * factors
         bboxes_gt = bbox_cxcywh_to_xyxy(bbox_targets) * factors
-
         # regression IoU loss, defaultly GIoU loss
         loss_iou = self.loss_iou(
             bboxes, bboxes_gt, bbox_weights, avg_factor=num_total_pos)
@@ -682,6 +687,12 @@ class GroundingDINOHead(DINOHead):
         # DETR regress the relative position of boxes (cxcywh) in the image,
         # thus the learning target is normalized by the image size. So here
         # we need to re-scale them for calculating IoU loss
+
+        ### liujack: this is the change for num_frames support
+        factors = factors.repeat(dn_bbox_preds.shape[0], 1)
+        bbox_targets = bbox_targets.repeat(dn_bbox_preds.shape[0], 1)
+        bbox_weights = bbox_weights.repeat(dn_bbox_preds.shape[0], 1)
+
         bbox_preds = dn_bbox_preds.reshape(-1, 4)
         bboxes = bbox_cxcywh_to_xyxy(bbox_preds) * factors
         bboxes_gt = bbox_cxcywh_to_xyxy(bbox_targets) * factors

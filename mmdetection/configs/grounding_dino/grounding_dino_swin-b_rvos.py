@@ -109,10 +109,10 @@ train_dataloader = dict(
             num_frames=1, # NOTE: should align with args. in inference?
             num_clips=1, # 1 for online
             sampler_interval=3,
-            # sampler_steps=4,
-            sampler_steps=[],
-            # sampler_lengths=[2, 3]
-            sampler_lengths=[]
+            sampler_steps=4,
+            # sampler_steps=[],
+            sampler_lengths=[2, 3]
+            # sampler_lengths=[]
 
         ),
         backend_args=_base_.backend_args),

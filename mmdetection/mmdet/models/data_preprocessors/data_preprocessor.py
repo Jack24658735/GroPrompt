@@ -159,7 +159,7 @@ class DetDataPreprocessor(ImgDataPreprocessor):
             gt_instances = InstanceData(metainfo=img_meta)
             gt_instances.bboxes = data_samples['boxes'][0]
             # gt_instances.labels = data_samples['labels']
-            gt_instances.labels = torch.tensor([0]).cuda() # NOTE: binary class
+            gt_instances.labels = torch.tensor([0] * len(data_samples['boxes'][0])).cuda() # NOTE: binary class
             new_data_samples.gt_instances = gt_instances
             new_data_samples.text = [caption for caption in data_samples['caption']][0]
             return {'inputs': inputs, 'data_samples': [new_data_samples]}
