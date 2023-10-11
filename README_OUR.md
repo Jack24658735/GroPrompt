@@ -45,7 +45,11 @@ R-VOS Project
     pip install -e .
     ```
 ## Extra setup for mmdetection
-1. Install mmdet & mmengine
+1. Install mmcv with pip install. **Please be cautious about the version of cuda and torch.**
+    ```bash
+    pip install "mmcv>=2.0.0" -f https://download.openmmlab.com/mmcv/dist/cu116/torch1.12.0/index.html
+    ```
+2. Install mmdet & mmengine
     ```bash
     cd mmdetection
     pip install -v -e .
