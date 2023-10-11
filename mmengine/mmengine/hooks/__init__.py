@@ -14,11 +14,12 @@ from .sampler_seed_hook import DistSamplerSeedHook
 from .sync_buffer_hook import SyncBuffersHook
 from .test_time_aug_hook import PrepareTTAHook
 from .freeze_layer_hook import FreezeLayerHook
+from .Add_lora_hook import AddLoRAHook
 
 __all__ = [
     'Hook', 'IterTimerHook', 'DistSamplerSeedHook', 'ParamSchedulerHook',
     'SyncBuffersHook', 'EmptyCacheHook', 'CheckpointHook', 'LoggerHook',
     'NaiveVisualizationHook', 'EMAHook', 'RuntimeInfoHook', 'ProfilerHook',
-    'PrepareTTAHook', 'NPUProfilerHook', 'EarlyStoppingHook', 'FreezeLayerHook'
-    
+    'PrepareTTAHook', 'NPUProfilerHook', 'EarlyStoppingHook', 'FreezeLayerHook',
+    'AddLoRAHook'
 ]

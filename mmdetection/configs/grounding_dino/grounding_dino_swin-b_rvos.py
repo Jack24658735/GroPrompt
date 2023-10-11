@@ -3,7 +3,8 @@ _base_ = [
 ]
 
 custom_hooks = [
-    dict(type='FreezeLayerHook')
+    dict(type='FreezeLayerHook'),
+    dict(type='AddLoRAHook')
 ]
 
 model = dict(
