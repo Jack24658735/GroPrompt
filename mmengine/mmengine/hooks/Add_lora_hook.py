@@ -44,7 +44,6 @@ class AddLoRAHook(Hook):
         # create for storage, then we can init them or load weights
         self.w_As = []  # These are linear layers
         self.w_Bs = []
-        import ipdb; ipdb.set_trace()
         for layer in model.decoder.layers:
             # layer.cross_attn.value_proj
             # layer.cross_attn.output_proj
