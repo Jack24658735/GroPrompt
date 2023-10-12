@@ -5,15 +5,15 @@ _base_ = [
 ##### Just for debugging purpose
 # default_hooks = dict(checkpoint=dict(type='CheckpointHook', interval=1, by_epoch=False))
 
-custom_hooks = [
-    dict(type='FreezeLayerHook'),
-    dict(type='CustomValidationHook')
-]
-## NOTE: if you want LORA, please use the following hooks
 # custom_hooks = [
-#     dict(type='CustomValidationHook'),
-#     dict(type='AddLoRAHook')
+#     dict(type='FreezeLayerHook'),
+#     dict(type='CustomValidationHook')
 # ]
+## NOTE: if you want LORA, please use the following hooks
+custom_hooks = [
+    dict(type='CustomValidationHook'),
+    dict(type='AddLoRAHook')
+]
 
 model = dict(
     type='GroundingDINO',
@@ -163,8 +163,8 @@ optim_wrapper = dict(
 
 # learning policy
 max_epochs = 12
-# train_cfg=dict(type='EpochBasedTrainLoop', max_epochs=max_epochs, val_interval=1)
-train_cfg=dict(_delete_=True,type='IterBasedTrainLoop', max_iters=100, val_interval=1)
+train_cfg=dict(type='EpochBasedTrainLoop', max_epochs=max_epochs, val_interval=1)
+# train_cfg=dict(_delete_=True,type='IterBasedTrainLoop', max_iters=100, val_interval=1)
 
 # val_cfg = dict(type='ValLoop')
 # test_cfg=dict(max_per_img=300) # NOTE: ???
