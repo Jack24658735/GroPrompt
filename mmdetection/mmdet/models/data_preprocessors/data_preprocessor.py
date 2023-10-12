@@ -121,6 +121,7 @@ class DetDataPreprocessor(ImgDataPreprocessor):
             dict: Data in the same format as the model input.
         """
         if type(data) != dict: # our training pipeline
+            # if give num_frames != 1: data[0][0] will be (num_frames, 3, H, W)
             data = {'inputs': data[0][0], 'data_samples': data[1]}
             batch_pad_shape = self._get_pad_shape(data)
             data = super().forward(data=data, training=training)

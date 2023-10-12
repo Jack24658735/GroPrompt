@@ -183,6 +183,8 @@ def get_args_parser():
                         help = "Maximum running annotation id, max is 4 (i.e., anno0~3). Default is 1 to save time.")
     parser.add_argument('--g_dino_ckpt_path', type=str, default='')
     parser.add_argument('--use_trained_gdino', action='store_true')
+    parser.add_argument('--use_gdino_LORA', action='store_true')
+
 
     
     return parser

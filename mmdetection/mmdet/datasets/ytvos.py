@@ -19,6 +19,8 @@ import json
 import numpy as np
 import random
 
+from mmdet.datasets.utils_rvos.box_ops import box_xyxy_to_cxcywh
+
 # -------------------------------------------------------------------------------------------------------------------
 # 1. Ref-Youtube-VOS
 ytvos_category_dict = {
@@ -255,7 +257,18 @@ class YTVOSDataset(Dataset):
             }
 
             # "boxes" normalize to [0, 1] and transform from xyxy to cxcywh in self._transform
-            imgs, target = self._transforms(imgs, target)
+            # imgs, target = self._transforms(imgs, target)
+
+            # TODO:
+            imgs = [torch.tensor(np.array(img)).permute(2,1,0) for img in imgs]
+            for img in imgs:
+                h, w = img[0].shape[-2:]
+                if "boxes" in target:
+                    boxes = target["boxes"]
+                    boxes = box_xyxy_to_cxcywh(boxes)
+                    boxes = boxes / torch.tensor([w, h, w, h], dtype=torch.float32)
+                    target["boxes"] = boxes
+
             imgs = torch.stack(imgs, dim=0)  # [T, 3, H, W]
 
             # FIXME: handle "valid", since some box may be removed due to random crop

@@ -2,10 +2,18 @@ _base_ = [
     './grounding_dino_swin-t_pretrain_obj365_goldg_cap4m.py',
 ]
 
+##### Just for debugging purpose
+# default_hooks = dict(checkpoint=dict(type='CheckpointHook', interval=1, by_epoch=False))
+
 custom_hooks = [
     dict(type='FreezeLayerHook'),
-    dict(type='AddLoRAHook')
+    dict(type='CustomValidationHook')
 ]
+## NOTE: if you want LORA, please use the following hooks
+# custom_hooks = [
+#     dict(type='CustomValidationHook'),
+#     dict(type='AddLoRAHook')
+# ]
 
 model = dict(
     type='GroundingDINO',
@@ -34,47 +42,48 @@ model = dict(
 load_from = 'mm_weights/groundingdino_swinb_cogcoor_mmdet-55949c9c.pth'
 
 # dataset settings
-train_pipeline = [
-    dict(type='LoadImageFromFile', backend_args=_base_.backend_args),
-    dict(type='LoadAnnotations', with_bbox=True),
-    dict(type='RandomFlip', prob=0.5),
-    dict(
-        type='RandomChoice',
-        transforms=[
-            [
-                dict(
-                    type='RandomChoiceResize',
-                    scales=[(480, 1333), (512, 1333), (544, 1333), (576, 1333),
-                            (608, 1333), (640, 1333), (672, 1333), (704, 1333),
-                            (736, 1333), (768, 1333), (800, 1333)],
-                    keep_ratio=True)
-            ],
-            [
-                dict(
-                    type='RandomChoiceResize',
-                    # The radio of all image in train dataset < 7
-                    # follow the original implement
-                    scales=[(400, 4200), (500, 4200), (600, 4200)],
-                    keep_ratio=True),
-                dict(
-                    type='RandomCrop',
-                    crop_type='absolute_range',
-                    crop_size=(384, 600),
-                    allow_negative_crop=True),
-                dict(
-                    type='RandomChoiceResize',
-                    scales=[(480, 1333), (512, 1333), (544, 1333), (576, 1333),
-                            (608, 1333), (640, 1333), (672, 1333), (704, 1333),
-                            (736, 1333), (768, 1333), (800, 1333)],
-                    keep_ratio=True)
-            ]
-        ]),
-    dict(
-        type='PackDetInputs',
-        meta_keys=('img_id', 'img_path', 'ori_shape', 'img_shape',
-                   'scale_factor', 'flip', 'flip_direction', 'text',
-                   'custom_entities'))
-]
+# train_pipeline = [
+#     dict(type='LoadImageFromFile', backend_args=_base_.backend_args),
+#     dict(type='LoadAnnotations', with_bbox=True),
+#     dict(type='RandomFlip', prob=0.5),
+#     dict(
+#         type='RandomChoice',
+#         transforms=[
+#             [
+#                 dict(
+#                     type='RandomChoiceResize',
+#                     scales=[(480, 1333), (512, 1333), (544, 1333), (576, 1333),
+#                             (608, 1333), (640, 1333), (672, 1333), (704, 1333),
+#                             (736, 1333), (768, 1333), (800, 1333)],
+#                     keep_ratio=True)
+#             ],
+#             [
+#                 dict(
+#                     type='RandomChoiceResize',
+#                     # The radio of all image in train dataset < 7
+#                     # follow the original implement
+#                     scales=[(400, 4200), (500, 4200), (600, 4200)],
+#                     keep_ratio=True),
+#                 dict(
+#                     type='RandomCrop',
+#                     crop_type='absolute_range',
+#                     crop_size=(384, 600),
+#                     allow_negative_crop=True),
+#                 dict(
+#                     type='RandomChoiceResize',
+#                     scales=[(480, 1333), (512, 1333), (544, 1333), (576, 1333),
+#                             (608, 1333), (640, 1333), (672, 1333), (704, 1333),
+#                             (736, 1333), (768, 1333), (800, 1333)],
+#                     keep_ratio=True)
+#             ]
+#         ]),
+#     dict(
+#         type='PackDetInputs',
+#         meta_keys=('img_id', 'img_path', 'ori_shape', 'img_shape',
+#                    'scale_factor', 'flip', 'flip_direction', 'text',
+#                    'custom_entities'))
+# ]
+train_pipeline = []
 
 # test_pipeline = [
 #     dict(type='LoadImageFromFile', backend_args=_base_.backend_args),
@@ -154,18 +163,8 @@ optim_wrapper = dict(
 
 # learning policy
 max_epochs = 12
-train_cfg=dict(
-        type='EpochBasedTrainLoop', max_epochs=max_epochs, val_interval=1,
-        # assigner=dict(
-        #     type='HungarianAssigner',
-        #     match_costs=[
-        #         dict(type='BinaryFocalLossCost', weight=2.0),
-        #         dict(type='BBoxL1Cost', weight=5.0, box_format='xywh'),
-        #         dict(type='IoUCost', iou_mode='giou', weight=2.0)
-        #     ]),
-)
-# train_cfg = dict(
-#     type='EpochBasedTrainLoop', max_epochs=max_epochs, val_interval=1)
+train_cfg=dict(type='EpochBasedTrainLoop', max_epochs=max_epochs, val_interval=1)
+# train_cfg=dict(_delete_=True,type='IterBasedTrainLoop', max_iters=100, val_interval=1)
 
 # val_cfg = dict(type='ValLoop')
 # test_cfg=dict(max_per_img=300) # NOTE: ???
