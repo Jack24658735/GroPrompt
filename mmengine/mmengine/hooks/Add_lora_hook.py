@@ -63,9 +63,8 @@ class AddLoRAHook(Hook):
         for w_A in self.w_As:
             nn.init.kaiming_uniform_(w_A.weight, a=math.sqrt(5))
         for w_B in self.w_Bs:
-            #####
-            nn.init.kaiming_uniform_(w_B.weight, a=math.sqrt(5))
-            # nn.init.zeros_(w_B.weight)
+            # nn.init.kaiming_uniform_(w_B.weight, a=math.sqrt(5))
+            nn.init.zeros_(w_B.weight)
         model = model.cuda()
         n_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
         total_parameters = sum(p.numel() for p in model.parameters())

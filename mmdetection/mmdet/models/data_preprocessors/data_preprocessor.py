@@ -135,7 +135,6 @@ class DetDataPreprocessor(ImgDataPreprocessor):
             # [(2,4)]
             for i in range(data_samples['boxes'][0].shape[0]):
                 new_data_samples = DetDataSample()
-                import ipdb; ipdb.set_trace()
                 batch_input_shape = (data_samples['size'][0][0].item(), data_samples['size'][0][1].item())
                 new_data_samples.set_metainfo({'batch_input_shape': batch_input_shape, 'pad_shape': batch_input_shape, 'img_shape': batch_input_shape})
                 img_meta = dict(img_shape=data_samples['size'])
