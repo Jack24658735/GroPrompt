@@ -39,7 +39,7 @@ model = dict(
         drop_path_rate=0.2,
         patch_norm=True,
         out_indices=(1, 2, 3),
-        with_cp=True,
+       # with_cp=True,
         convert_weights=False),
     neck=dict(
         type='ChannelMapper',
@@ -52,7 +52,7 @@ model = dict(
         num_outs=4),
     encoder=dict(
         num_layers=6,
-        num_cp=6,
+       # num_cp=6,
         # visual layer config
         layer_cfg=dict(
             self_attn_cfg=dict(embed_dims=256, num_levels=4, dropout=0.0),
