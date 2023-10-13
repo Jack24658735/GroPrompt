@@ -245,7 +245,8 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
 
     # TODO: load the model from mmdet
     # Specify the path to model config and checkpoint file
-    config_file = 'mmdetection/configs/grounding_dino/grounding_dino_swin-b_pretrain_mixeddata.py'
+    # config_file = 'mmdetection/configs/grounding_dino/grounding_dino_swin-b_pretrain_mixeddata.py'
+    config_file = args.g_dino_config_path
     # checkpoint_file = 'mm_weights/groundingdino_swinb_cogcoor_mmdet-55949c9c.pth'
     checkpoint_file = args.g_dino_ckpt_path
     

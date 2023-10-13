@@ -48,6 +48,7 @@ class CustomValidationHook(Hook):
                     # setup the model path for loading
                     '--g_dino_ckpt_path=' + f'{runner.work_dir}/epoch_{self.curr_epoch}.pth',
                     '--use_gdino_LORA',
+                    '--g_dino_config_path=' + f'{runner.work_dir}/grounding_dino_swin-b_rvos.py',
                 ]
             else:
                 cmd = [
@@ -61,6 +62,7 @@ class CustomValidationHook(Hook):
                     '--use_trained_gdino',
                     # setup the model path for loading
                     '--g_dino_ckpt_path=' + f'{runner.work_dir}/epoch_{self.curr_epoch}.pth',
+                    '--g_dino_config_path=' + f'{runner.work_dir}/grounding_dino_swin-b_rvos.py',
                 ]
             # Run the command
             subprocess.run(cmd)

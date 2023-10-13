@@ -45,7 +45,7 @@ model = dict(
                 dict(type='BBoxL1Cost', weight=5.0, box_format='xywh'),
                 dict(type='IoUCost', iou_mode='giou', weight=2.0)
             ])),
-    # test_cfg=dict(max_per_img=300)
+    test_cfg=dict(max_per_img=300),
     bbox_head=dict(
         type='GroundingDINOHead',
         num_classes=65,
@@ -106,15 +106,15 @@ model = dict(
 # ]
 train_pipeline = []
 
-# test_pipeline = [
-#     dict(type='LoadImageFromFile', backend_args=_base_.backend_args),
-#     dict(type='FixScaleResize', scale=(800, 1333), keep_ratio=True),
-#     dict(type='LoadAnnotations', with_bbox=True),
-#     dict(
-#         type='PackDetInputs',
-#         meta_keys=('img_id', 'img_path', 'ori_shape', 'img_shape',
-#                    'scale_factor', 'text', 'custom_entities'))
-# ]
+test_pipeline = [
+    dict(type='LoadImageFromFile', backend_args=_base_.backend_args),
+    dict(type='FixScaleResize', scale=(800, 1333), keep_ratio=True),
+    dict(type='LoadAnnotations', with_bbox=True),
+    dict(
+        type='PackDetInputs',
+        meta_keys=('img_id', 'img_path', 'ori_shape', 'img_shape',
+                   'scale_factor', 'text', 'custom_entities'))
+]
 
 # TODO: update the dataset path
 dataset_type = 'YTVOSDataset'
@@ -158,9 +158,9 @@ train_dataloader = dict(
 val_dataloader = None
 val_cfg = None
 val_evaluator = None
-test_dataloader = None
-test_cfg = None
-test_evaluator = None
+# test_dataloader = None
+# test_cfg = None
+# test_evaluator = None
 
 # train_dataloader = dict(
 #     dataset=dict(
@@ -196,8 +196,8 @@ optim_wrapper = dict(
 
 # learning policy
 max_epochs = 12
-train_cfg=dict(type='EpochBasedTrainLoop', max_epochs=max_epochs, val_interval=1)
-# train_cfg=dict(_delete_=True,type='IterBasedTrainLoop', max_iters=1000, val_interval=1)
+# train_cfg=dict(type='EpochBasedTrainLoop', max_epochs=max_epochs, val_interval=1)
+train_cfg=dict(_delete_=True,type='IterBasedTrainLoop', max_iters=100, val_interval=1)
 
 # val_cfg = dict(type='ValLoop')
 # test_cfg=dict(max_per_img=300) # NOTE: ???
