@@ -245,11 +245,11 @@ class YTVOSDataset(Dataset):
 
             # transform
             # w, h = img.size
-            w, h = img.shape[1], img.shape[0]
+            width, height = img.shape[1], img.shape[0]
             labels = torch.stack(labels, dim=0)
             boxes = torch.stack(boxes, dim=0)
-            boxes[:, 0::2].clamp_(min=0, max=w)
-            boxes[:, 1::2].clamp_(min=0, max=h)
+            boxes[:, 0::2].clamp_(min=0, max=width)
+            boxes[:, 1::2].clamp_(min=0, max=height)
             masks = torch.stack(masks, dim=0)
             target = {
                 'frames_idx': torch.tensor(sample_indx),  # [T,]
@@ -258,21 +258,18 @@ class YTVOSDataset(Dataset):
                 'masks': masks,  # [T, H, W]
                 'valid': torch.tensor(valid),  # [T,]
                 'caption': exp,
-                'orig_size': torch.as_tensor([int(h), int(w)]),
-                'size': torch.as_tensor([int(h), int(w)]),
+                'orig_size': torch.as_tensor([int(height), int(width)]),
+                'size': torch.as_tensor([int(height), int(width)]),
             }
 
             # "boxes" normalize to [0, 1] and transform from xyxy to cxcywh in self._transform
             # imgs, target = self._transforms(imgs, target)
             imgs = [torch.tensor(img).permute(2,0,1) for img in imgs]
-            for img in imgs:
-                h, w = img[0].shape[-2:]
-                if "boxes" in target:
-                    boxes = target["boxes"]
-                    boxes = box_xyxy_to_cxcywh(boxes)
-                    boxes = boxes / torch.tensor([w, h, w, h], dtype=torch.float32)
-                    target["boxes"] = boxes
-
+            # if "boxes" in target:
+            #     boxes = target["boxes"]
+            #     boxes = box_xyxy_to_cxcywh(boxes)
+            #     boxes = boxes / torch.tensor([width, height, width, height], dtype=torch.float32)
+            #     target["boxes"] = boxes
             imgs = torch.stack(imgs, dim=0)  # [T, 3, H, W]
 
             # FIXME: handle "valid", since some box may be removed due to random crop
@@ -280,7 +277,6 @@ class YTVOSDataset(Dataset):
                 instance_check = True
             else:
                 idx = random.randint(0, self.__len__() - 1)
-
         return imgs, target
     
     def get_data_info(self, idx):

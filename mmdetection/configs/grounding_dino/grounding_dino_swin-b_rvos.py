@@ -7,15 +7,15 @@ load_from = 'mm_weights/groundingdino_swinb_cogcoor_mmdet-55949c9c.pth'
 ##### Just for debugging purpose
 # default_hooks = dict(checkpoint=dict(type='CheckpointHook', interval=1, by_epoch=False))
 
-# custom_hooks = [
-#     dict(type='FreezeLayerHook'),
-#     dict(type='CustomValidationHook')
-# ]
-## NOTE: if you want LORA, please use the following hooks
 custom_hooks = [
-    dict(type='CustomValidationHook'),
-    dict(type='AddLoRAHook')
+    dict(type='FreezeLayerHook'),
+    dict(type='CustomValidationHook')
 ]
+## NOTE: if you want LORA, please use the following hooks
+# custom_hooks = [
+#     dict(type='CustomValidationHook'),
+#     dict(type='AddLoRAHook')
+# ]
 
 model = dict(
     type='GroundingDINO',
@@ -130,7 +130,7 @@ train_dataloader = dict(
             img_folder=f'{data_root}/train/',
             ann_file=f'{data_root}/meta_expressions/train/meta_expressions.json',
             # transforms='',
-            num_frames=2, # NOTE: should align with args. in inference?
+            num_frames=1, # NOTE: should align with args. in inference?
             num_clips=1, # 1 for online
             sampler_interval=3,
             sampler_steps=4,
