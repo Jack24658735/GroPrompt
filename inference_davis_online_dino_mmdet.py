@@ -253,10 +253,10 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
     # model = init_detector(config_file, checkpoint_file, device='cuda:0')
     inferencer = DetInferencer(model=config_file, weights=checkpoint_file, device='cuda:0', show_progress=False)
     if args.use_gdino_LORA:
-        model = add_lora(inferencer.model)
-        inferencer.model = model
+        inferencer.model = add_lora(inferencer.model)
         checkpoint = torch.load(args.g_dino_ckpt_path, map_location='cpu')
         inferencer.model.load_state_dict(checkpoint['state_dict'])
+        inferencer.model.eval()
         print('Reload the ckpt for LORA')
 
     device = torch.device('cuda:0')

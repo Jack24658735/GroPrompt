@@ -5,7 +5,6 @@ import torch.nn as nn
 import math
 import subprocess
 import os
-os.environ['NCCL_ASYNC_ERROR_HANDLING'] = '1'
 import pandas as pd
 from mmengine.dist import is_main_process
 

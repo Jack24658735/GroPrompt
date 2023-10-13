@@ -1,6 +1,8 @@
 _base_ = [
-    './grounding_dino_swin-t_pretrain_obj365_goldg_cap4m.py',
+    # './grounding_dino_swin-t_pretrain_obj365_goldg_cap4m.py',
+    './grounding_dino_swin-t_finetune_16xb2_1x_coco.py',
 ]
+load_from = 'mm_weights/groundingdino_swinb_cogcoor_mmdet-55949c9c.pth'
 
 ##### Just for debugging purpose
 # default_hooks = dict(checkpoint=dict(type='CheckpointHook', interval=1, by_epoch=False))
@@ -32,14 +34,26 @@ model = dict(
         assigner=dict(
             type='HungarianAssigner',
             match_costs=[
-                dict(type='BinaryFocalLossCost', weight=2.0),
+                dict(type='BinaryFocalLossCost', weight=0.0),
                 dict(type='BBoxL1Cost', weight=5.0, box_format='xywh'),
                 dict(type='IoUCost', iou_mode='giou', weight=2.0)
             ])),
     # test_cfg=dict(max_per_img=300)
+    bbox_head=dict(
+        type='GroundingDINOHead',
+        num_classes=65,
+        sync_cls_avg_factor=True,
+        contrastive_cfg=dict(max_text_len=256, log_scale=0.0, bias=False),
+        loss_cls=dict(
+            type='FocalLoss',
+            use_sigmoid=True,
+            gamma=2.0,
+            alpha=0.25,
+            loss_weight=0.0),  # 2.0 in DeformDETR
+        loss_bbox=dict(type='L1Loss', loss_weight=5.0),
+        loss_iou=dict(type='GIoULoss', loss_weight=2.0)),
 )
 
-load_from = 'mm_weights/groundingdino_swinb_cogcoor_mmdet-55949c9c.pth'
 
 # dataset settings
 # train_pipeline = [
@@ -116,7 +130,7 @@ train_dataloader = dict(
             img_folder=f'{data_root}/train/',
             ann_file=f'{data_root}/meta_expressions/train/meta_expressions.json',
             # transforms='',
-            num_frames=1, # NOTE: should align with args. in inference?
+            num_frames=2, # NOTE: should align with args. in inference?
             num_clips=1, # 1 for online
             sampler_interval=3,
             sampler_steps=4,
@@ -162,9 +176,9 @@ optim_wrapper = dict(
 
 
 # learning policy
-max_epochs = 12
-train_cfg=dict(type='EpochBasedTrainLoop', max_epochs=max_epochs, val_interval=1)
-# train_cfg=dict(_delete_=True,type='IterBasedTrainLoop', max_iters=100, val_interval=1)
+max_epochs = 1
+# train_cfg=dict(type='EpochBasedTrainLoop', max_epochs=max_epochs, val_interval=1)
+train_cfg=dict(_delete_=True,type='IterBasedTrainLoop', max_iters=1000, val_interval=1)
 
 # val_cfg = dict(type='ValLoop')
 # test_cfg=dict(max_per_img=300) # NOTE: ???
@@ -183,6 +197,6 @@ param_scheduler = [
 # NOTE: `auto_scale_lr` is for automatically scaling LR,
 # USER SHOULD NOT CHANGE ITS VALUES.
 # base_batch_size = (8 GPUs) x (2 samples per GPU)
-auto_scale_lr = dict(base_batch_size=16)
+auto_scale_lr = dict(base_batch_size=8)
 
 find_unused_parameters=True

@@ -123,47 +123,36 @@ class DetDataPreprocessor(ImgDataPreprocessor):
         if type(data) != dict: # our training pipeline
             # if give num_frames != 1: data[0][0] will be (num_frames, 3, H, W)
             data = {'inputs': data[0][0], 'data_samples': data[1]}
-            batch_pad_shape = self._get_pad_shape(data)
+            # batch_pad_shape = self._get_pad_shape(data)
             data = super().forward(data=data, training=training)
             inputs, data_samples = data['inputs'], data['data_samples']
-
-            ### BUG: ignore this at first... (liujack)
-            # if data_samples is not None:
-            #     # NOTE the batched image size information may be useful, e.g.
-            #     # in DETR, this is needed for the construction of masks, which is
-            #     # then used for the transformer_head.
-            #     batch_input_shape = tuple(inputs[0].size()[-2:])
-            #     for data_sample, pad_shape in zip(data_samples, batch_pad_shape):
-            #         data_sample.set_metainfo({
-            #             'batch_input_shape': batch_input_shape,
-            #             'pad_shape': pad_shape
-            #         })
-
-            #     if self.boxtype2tensor:
-            #         samplelist_boxtype2tensor(data_samples)
-
-            #     if self.pad_mask and training:
-            #         self.pad_gt_masks(data_samples)
-
-            #     if self.pad_seg and training:
-            #         self.pad_gt_sem_seg(data_samples)
 
             if training and self.batch_augments is not None:
                 for batch_aug in self.batch_augments:
                     inputs, data_samples = batch_aug(inputs, data_samples)
-            
             # TODO: transfer data_samples to mmdet format
-            new_data_samples = DetDataSample()
-            batch_input_shape = (data_samples['size'][0][0].item(), data_samples['size'][0][1].item())
-            new_data_samples.set_metainfo({'batch_input_shape': batch_input_shape, 'pad_shape': batch_input_shape, 'img_shape': batch_input_shape})
-            img_meta = dict(img_shape=data_samples['size'])
-            gt_instances = InstanceData(metainfo=img_meta)
-            gt_instances.bboxes = data_samples['boxes'][0]
-            # gt_instances.labels = data_samples['labels']
-            gt_instances.labels = torch.tensor([0] * len(data_samples['boxes'][0])).cuda() # NOTE: binary class
-            new_data_samples.gt_instances = gt_instances
-            new_data_samples.text = [caption for caption in data_samples['caption']][0]
-            return {'inputs': inputs, 'data_samples': [new_data_samples]}
+            new_data_samples_list = []
+            # [(2,4)]
+            for i in range(data_samples['boxes'][0].shape[0]):
+                new_data_samples = DetDataSample()
+                import ipdb; ipdb.set_trace()
+                batch_input_shape = (data_samples['size'][0][0].item(), data_samples['size'][0][1].item())
+                new_data_samples.set_metainfo({'batch_input_shape': batch_input_shape, 'pad_shape': batch_input_shape, 'img_shape': batch_input_shape})
+                img_meta = dict(img_shape=data_samples['size'])
+                gt_instances = InstanceData(metainfo=img_meta)
+                # flatten the list with [0]
+                
+                gt_instances.bboxes = data_samples['boxes'][0][i:i+1]
+                # num_frames = 2
+                #     [tensor([[ 2.6123e-04,  5.1022e-04,  8.5449e-05, -4.5718e-04],
+                # [ 2.6947e-04,  5.1553e-04,  8.3618e-05, -4.2535e-04]], device='cuda:0')]
+                
+                # gt_instances.labels = data_samples['labels'][0]
+                gt_instances.labels = torch.tensor([0]).cuda() # NOTE: binary class
+                new_data_samples.gt_instances = gt_instances
+                new_data_samples.text = [caption for caption in data_samples['caption']][0]
+                new_data_samples_list.append(new_data_samples)
+            return {'inputs': inputs, 'data_samples': new_data_samples_list}
         else:
             batch_pad_shape = self._get_pad_shape(data)
             data = super().forward(data=data, training=training)

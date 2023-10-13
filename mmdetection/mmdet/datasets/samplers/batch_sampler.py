@@ -42,7 +42,7 @@ class AspectRatioBatchSampler(BatchSampler):
             data_info = self.sampler.dataset.get_data_info(idx)
             # import ipdb; ipdb.set_trace()
             # width, height = data_info['width'], data_info['height']
-            width, height = data_info[1]['size'][0].item(), data_info[1]['size'][1].item()
+            width, height = data_info[1]['size'][1].item(), data_info[1]['size'][0].item()
 
             bucket_id = 0 if width < height else 1
             bucket = self._aspect_ratio_buckets[bucket_id]

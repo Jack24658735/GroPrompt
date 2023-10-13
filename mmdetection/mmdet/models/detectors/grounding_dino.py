@@ -231,9 +231,6 @@ class GroundingDINO(DINO):
         if self.training:
             dn_label_query, dn_bbox_query, dn_mask, dn_meta = \
                 self.dn_query_generator(batch_data_samples)
-            # liujack: repeat for num_of_frames support
-            dn_label_query = dn_label_query.repeat(query.shape[0], 1, 1)
-            dn_bbox_query = dn_bbox_query.repeat(topk_coords_unact.shape[0], 1, 1)
             
             query = torch.cat([dn_label_query, query], dim=1)
             reference_points = torch.cat([dn_bbox_query, topk_coords_unact],

@@ -21,6 +21,8 @@ import random
 
 from mmdet.datasets.utils_rvos.box_ops import box_xyxy_to_cxcywh
 
+import mmcv
+
 # -------------------------------------------------------------------------------------------------------------------
 # 1. Ref-Youtube-VOS
 ytvos_category_dict = {
@@ -216,7 +218,10 @@ class YTVOSDataset(Dataset):
                 frame_name = frames[frame_indx]
                 img_path = os.path.join(str(self.img_folder), 'JPEGImages', video, frame_name + '.jpg')
                 mask_path = os.path.join(str(self.img_folder), 'Annotations', video, frame_name + '.png')
-                img = Image.open(img_path).convert('RGB')
+                
+                # img = Image.open(img_path).convert('RGB')
+                img = mmcv.imread(img_path)
+                
                 mask = Image.open(mask_path).convert('P')
 
                 # create the target
@@ -239,7 +244,8 @@ class YTVOSDataset(Dataset):
                 boxes.append(box)
 
             # transform
-            w, h = img.size
+            # w, h = img.size
+            w, h = img.shape[1], img.shape[0]
             labels = torch.stack(labels, dim=0)
             boxes = torch.stack(boxes, dim=0)
             boxes[:, 0::2].clamp_(min=0, max=w)
@@ -258,9 +264,7 @@ class YTVOSDataset(Dataset):
 
             # "boxes" normalize to [0, 1] and transform from xyxy to cxcywh in self._transform
             # imgs, target = self._transforms(imgs, target)
-
-            # TODO:
-            imgs = [torch.tensor(np.array(img)).permute(2,1,0) for img in imgs]
+            imgs = [torch.tensor(img).permute(2,0,1) for img in imgs]
             for img in imgs:
                 h, w = img[0].shape[-2:]
                 if "boxes" in target:
