@@ -7,15 +7,22 @@ load_from = 'mm_weights/groundingdino_swinb_cogcoor_mmdet-55949c9c.pth'
 ##### Just for debugging purpose
 # default_hooks = dict(checkpoint=dict(type='CheckpointHook', interval=1, by_epoch=False))
 
-custom_hooks = [
-    dict(type='FreezeLayerHook'),
-    dict(type='CustomValidationHook')
-]
-## NOTE: if you want LORA, please use the following hooks
+
+#############################################################################################################
+#############################################################################################################
+# set hook
+#############################################################################################################
+#############################################################################################################
+
 # custom_hooks = [
-#     dict(type='CustomValidationHook'),
-#     dict(type='AddLoRAHook')
+#     dict(type='FreezeLayerHook'),
+#     dict(type='CustomValidationHook')
 # ]
+## NOTE: if you want LORA, please use the following hooks
+custom_hooks = [
+    dict(type='CustomValidationHook'),
+    dict(type='AddLoRAHook')
+]
 
 model = dict(
     type='GroundingDINO',
@@ -30,7 +37,7 @@ model = dict(
     neck=dict(in_channels=[256, 512, 1024]),
     # training and testing settings
     train_cfg=dict(
-        _delete_=True,
+       # _delete_=True,
         assigner=dict(
             type='HungarianAssigner',
             match_costs=[
@@ -113,6 +120,12 @@ train_pipeline = []
 dataset_type = 'YTVOSDataset'
 data_root = './data/ref-youtube-vos'
 
+#############################################################################################################
+#############################################################################################################
+# set batch_size, num_frames
+#############################################################################################################
+#############################################################################################################
+
 train_dataloader = dict(
     batch_size=1,
     num_workers=1,
@@ -124,15 +137,15 @@ train_dataloader = dict(
         data_root=data_root,
         # ann_file='annotations/instances_train2017.json',
         # data_prefix=dict(img='train2017/'),
-        filter_cfg=dict(filter_empty_gt=True, min_size=32),
+        filter_cfg=dict(filter_empty_gt=False),
         pipeline=train_pipeline,
         ytvos_dict=dict(
             img_folder=f'{data_root}/train/',
             ann_file=f'{data_root}/meta_expressions/train/meta_expressions.json',
             # transforms='',
-            num_frames=1, # NOTE: should align with args. in inference?
+            num_frames=2, # NOTE: should align with args. in inference?
             num_clips=1, # 1 for online
-            sampler_interval=3,
+            sampler_interval=5,
             sampler_steps=4,
             # sampler_steps=[],
             sampler_lengths=[2, 3]
@@ -160,6 +173,12 @@ test_evaluator = None
 
 # We did not adopt the official 24e optimizer strategy
 # because the results indicate that the current strategy is superior.
+
+#############################################################################################################
+#############################################################################################################
+# set lr
+#############################################################################################################
+#############################################################################################################
 optim_wrapper = dict(
     _delete_=True,
     type='OptimWrapper',
@@ -176,9 +195,9 @@ optim_wrapper = dict(
 
 
 # learning policy
-max_epochs = 1
-# train_cfg=dict(type='EpochBasedTrainLoop', max_epochs=max_epochs, val_interval=1)
-train_cfg=dict(_delete_=True,type='IterBasedTrainLoop', max_iters=1000, val_interval=1)
+max_epochs = 12
+train_cfg=dict(type='EpochBasedTrainLoop', max_epochs=max_epochs, val_interval=1)
+# train_cfg=dict(_delete_=True,type='IterBasedTrainLoop', max_iters=1000, val_interval=1)
 
 # val_cfg = dict(type='ValLoop')
 # test_cfg=dict(max_per_img=300) # NOTE: ???
@@ -197,6 +216,12 @@ param_scheduler = [
 # NOTE: `auto_scale_lr` is for automatically scaling LR,
 # USER SHOULD NOT CHANGE ITS VALUES.
 # base_batch_size = (8 GPUs) x (2 samples per GPU)
+
+#############################################################################################################
+#############################################################################################################
+# set base_batch_size
+#############################################################################################################
+#############################################################################################################
 auto_scale_lr = dict(base_batch_size=8)
 
 find_unused_parameters=True
