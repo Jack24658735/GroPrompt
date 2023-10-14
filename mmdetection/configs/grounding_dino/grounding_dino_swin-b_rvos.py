@@ -14,15 +14,15 @@ load_from = 'mm_weights/groundingdino_swinb_cogcoor_mmdet-55949c9c.pth'
 #############################################################################################################
 #############################################################################################################
 
-# custom_hooks = [
-#     dict(type='FreezeLayerHook'),
-#     dict(type='CustomValidationHook')
-# ]
-## NOTE: if you want LORA, please use the following hooks
 custom_hooks = [
-    dict(type='CustomValidationHook'),
-    dict(type='AddLoRAHook')
+    dict(type='FreezeLayerHook'),
+    dict(type='CustomValidationHook')
 ]
+## NOTE: if you want LORA, please use the following hooks
+# custom_hooks = [
+#     dict(type='CustomValidationHook'),
+#     dict(type='AddLoRAHook')
+# ]
 
 model = dict(
     type='GroundingDINO',
@@ -107,8 +107,14 @@ model = dict(
 train_pipeline = []
 
 test_pipeline = [
-    dict(type='LoadImageFromFile', backend_args=_base_.backend_args),
-    dict(type='FixScaleResize', scale=(800, 1333), keep_ratio=True),
+    dict(
+        type='LoadImageFromFile', backend_args=None,
+        imdecode_backend='pillow'),
+    dict(
+        type='FixScaleResize',
+        scale=(800, 1333),
+        keep_ratio=True,
+        backend='pillow'),
     dict(type='LoadAnnotations', with_bbox=True),
     dict(
         type='PackDetInputs',
@@ -122,7 +128,7 @@ data_root = './data/ref-youtube-vos'
 
 #############################################################################################################
 #############################################################################################################
-# set batch_size, num_frames
+# set num_workers
 #############################################################################################################
 #############################################################################################################
 
@@ -143,7 +149,7 @@ train_dataloader = dict(
             img_folder=f'{data_root}/train/',
             ann_file=f'{data_root}/meta_expressions/train/meta_expressions.json',
             # transforms='',
-            num_frames=2, # NOTE: should align with args. in inference?
+            num_frames=5, # NOTE: should align with args. in inference?
             num_clips=1, # 1 for online
             sampler_interval=5,
             sampler_steps=4,
@@ -196,8 +202,8 @@ optim_wrapper = dict(
 
 # learning policy
 max_epochs = 12
-# train_cfg=dict(type='EpochBasedTrainLoop', max_epochs=max_epochs, val_interval=1)
-train_cfg=dict(_delete_=True,type='IterBasedTrainLoop', max_iters=100, val_interval=1)
+train_cfg=dict(type='EpochBasedTrainLoop', max_epochs=max_epochs, val_interval=1)
+# train_cfg=dict(_delete_=True,type='IterBasedTrainLoop', max_iters=100, val_interval=1)
 
 # val_cfg = dict(type='ValLoop')
 # test_cfg=dict(max_per_img=300) # NOTE: ???
@@ -222,6 +228,6 @@ param_scheduler = [
 # set base_batch_size
 #############################################################################################################
 #############################################################################################################
-auto_scale_lr = dict(base_batch_size=8)
+auto_scale_lr = dict(base_batch_size=40)
 
 find_unused_parameters=True
