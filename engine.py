@@ -452,6 +452,71 @@ def evaluate_online_a2d(model, data_loader, postprocessor, device, args):
     return eval_metrics
 
 
+@torch.no_grad()
+def evaluate_a2d_g_sam(model, inferencer, data_loader, device, args):
+    model.eval()
+    predictions = []
+    metric_logger = utils.MetricLogger(delimiter="  ")
+    header = 'Test:'
+
+    for samples, targets in metric_logger.log_every(data_loader, 10, header):
+        
+        import ipdb; ipdb.set_trace()
+        
+        image_ids = [t['image_id'] for t in targets]
+
+        samples = samples.to(device)
+        captions = [t["caption"] for t in targets]
+        targets = utils.targets_to(targets, device)
+
+        outputs = model(samples, captions, targets)
+
+        orig_target_sizes = torch.stack([t["orig_size"] for t in targets], dim=0)
+        target_sizes = torch.stack([t["size"] for t in targets], dim=0)
+        processed_outputs = postprocessor(outputs, orig_target_sizes, target_sizes)
+
+        # get the best-matched segmentation
+        max_idx = processed_outputs[0]['scores'].max(-1)[1]
+        predictions.append({ 'image_id': image_ids[0], 'category_id': 1, 'segmentation': processed_outputs[0]['rle_masks'][max_idx],
+                             'score': processed_outputs[0]['scores'][max_idx].item()})
+
+        # for p, image_id in zip(processed_outputs, image_ids):
+        #     for s, m in zip(p['scores'], p['rle_masks']):
+        #             predictions.append({'image_id': image_id,
+        #                                 'category_id': 1,  # dummy label, as categories are not predicted in ref-vos
+        #                                 'segmentation': m,
+        #                                 'score': s.item()})
+    
+    # gather and merge predictions from all gpus
+    gathered_pred_lists = utils.all_gather(predictions)
+    predictions = [p for p_list in gathered_pred_lists for p in p_list]
+    # evaluation
+    eval_metrics = {}
+    if utils.is_main_process():
+        if args.dataset_file == 'a2d':
+            coco_gt = COCO(os.path.join(args.a2d_path, 'a2d_sentences_test_annotations_in_coco_format.json'))
+        elif args.dataset_file == 'jhmdb':
+            coco_gt = COCO(os.path.join(args.jhmdb_path, 'jhmdb_sentences_gt_annotations_in_coco_format.json'))
+        else:
+            raise NotImplementedError
+        coco_pred = coco_gt.loadRes(predictions)
+        coco_eval = COCOeval(coco_gt, coco_pred, iouType='segm')
+        coco_eval.params.useCats = 0  # ignore categories as they are not predicted in ref-vos task
+        coco_eval.evaluate()
+        coco_eval.accumulate()
+        coco_eval.summarize()
+        ap_labels = ['mAP 0.5:0.95', 'AP 0.5', 'AP 0.75', 'AP 0.5:0.95 S', 'AP 0.5:0.95 M', 'AP 0.5:0.95 L']
+        ap_metrics = coco_eval.stats[:6]
+        eval_metrics = {l: m for l, m in zip(ap_labels, ap_metrics)}
+        # Precision and IOU
+        precision_at_k, overall_iou, mean_iou = calculate_precision_at_k_and_iou_metrics(coco_gt, coco_pred)
+        eval_metrics.update({f'P@{k}': m for k, m in zip([0.5, 0.6, 0.7, 0.8, 0.9], precision_at_k)})
+        eval_metrics.update({'overall_iou': overall_iou, 'mean_iou': mean_iou})
+        print(eval_metrics)
+
+    # sync all processes before starting a new epoch or exiting
+    dist.barrier()
+    return eval_metrics
 
 
 

@@ -71,6 +71,8 @@ transform = T.Compose([
 import cv2
 import mmcv
 from mmdet.apis import DetInferencer
+import torch.nn as nn
+
 
 
 
@@ -182,6 +184,52 @@ def save_bbox_to_csv(output_csv, data):
             writer.writerow(entry)
 
 
+class _LoRALayer(nn.Module):
+    def __init__(self, w: nn.Module, w_a: nn.Module, w_b: nn.Module):
+        super().__init__()
+        self.w = w
+        self.w_a = w_a
+        self.w_b = w_b
+
+    def forward(self, x):
+        x = self.w(x) + self.w_b(self.w_a(x))
+        return x
+
+def add_lora(model):
+    if isinstance(model, torch.nn.parallel.DistributedDataParallel):
+        model = model.module
+    r = 4 # LORA rank (can be modified)
+    assert r > 0
+    dim = model.decoder.layers[0].cross_attn.value_proj.in_features
+
+    for param in model.parameters():
+        param.requires_grad = False
+    # create for storage, then we can init them or load weights
+    w_As = []  # These are linear layers
+    w_Bs = []
+    for layer in model.decoder.layers:
+        # layer.cross_attn.value_proj
+        # layer.cross_attn.output_proj
+        w_q_linear = layer.cross_attn.value_proj
+        w_v_linear = layer.cross_attn.output_proj
+        w_a_linear_q = nn.Linear(dim, r, bias=False)
+        w_b_linear_q = nn.Linear(r, dim, bias=False)
+        w_a_linear_v = nn.Linear(dim, r, bias=False)
+        w_b_linear_v = nn.Linear(r, dim, bias=False)
+        w_As.append(w_a_linear_q)
+        w_Bs.append(w_b_linear_q)
+        w_As.append(w_a_linear_v)
+        w_Bs.append(w_b_linear_v)
+        layer.cross_attn.value_proj = _LoRALayer(w_q_linear, w_a_linear_q, w_b_linear_q)
+        layer.cross_attn.output_proj = _LoRALayer(w_v_linear, w_a_linear_v, w_b_linear_v)
+    
+    for w_A in w_As:
+        nn.init.kaiming_uniform_(w_A.weight, a=math.sqrt(5))
+    for w_B in w_Bs:
+        nn.init.zeros_(w_B.weight)
+    model = model.cuda()
+    return model
+
 
 def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_prefix, img_folder, video_list):
     text = 'processor %d' % pid
@@ -199,12 +247,18 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
 
         # TODO: load the model from mmdet
         # Specify the path to model config and checkpoint file
-        config_file = 'mmdetection/configs/grounding_dino/grounding_dino_swin-b_pretrain_mixeddata.py'
-        checkpoint_file = 'mm_weights/groundingdino_swinb_cogcoor_mmdet-55949c9c.pth'
+        config_file = args.g_dino_config_path
+        checkpoint_file = args.g_dino_ckpt_path
         
         # Build the model from a config file and a checkpoint file
         # model = init_detector(config_file, checkpoint_file, device='cuda:0')
         inferencer = DetInferencer(model=config_file, weights=checkpoint_file, device='cuda:0', show_progress=False)
+        if args.use_gdino_LORA:
+            inferencer.model = add_lora(inferencer.model)
+            checkpoint = torch.load(args.g_dino_ckpt_path, map_location='cpu')
+            inferencer.model.load_state_dict(checkpoint['state_dict'])
+            inferencer.model.eval()
+            print('Reload the ckpt for LORA')
         
 
         ## 2. Building SAM Model and SAM Predictor
