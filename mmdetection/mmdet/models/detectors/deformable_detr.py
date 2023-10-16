@@ -224,17 +224,16 @@ class DeformableDETR(DetectionTransformer):
         else:
             valid_ratios = mlvl_feats[0].new_ones(batch_size, len(mlvl_feats),
                                                   2)
-
         encoder_inputs_dict = dict(
-            feat=feat_flatten,
-            feat_mask=mask_flatten,
-            feat_pos=lvl_pos_embed_flatten,
-            spatial_shapes=spatial_shapes,
-            level_start_index=level_start_index,
-            valid_ratios=valid_ratios)
+            feat=feat_flatten, # torch.Size([5, 19160, 256]), 5: num_frames
+            feat_mask=mask_flatten, # None
+            feat_pos=lvl_pos_embed_flatten, # torch.Size([5, 19160, 256]), 5: num_frames
+            spatial_shapes=spatial_shapes, # 90*160+45*80+23*40+12*20
+            level_start_index=level_start_index, # tensor([0, 14400, 18000, 18920])
+            valid_ratios=valid_ratios) # torch.Size([5, 4, 2])
         decoder_inputs_dict = dict(
-            memory_mask=mask_flatten,
-            spatial_shapes=spatial_shapes,
+            memory_mask=mask_flatten, # None
+            spatial_shapes=spatial_shapes, # 90*160+45*80+23*40+12*20
             level_start_index=level_start_index,
             valid_ratios=valid_ratios)
         return encoder_inputs_dict, decoder_inputs_dict

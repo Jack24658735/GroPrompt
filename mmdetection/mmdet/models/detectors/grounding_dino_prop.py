@@ -17,7 +17,7 @@ from .glip import (create_positive_map, create_positive_map_label_to_token,
 
 
 @MODELS.register_module()
-class GroundingDINO(DINO):
+class GroundingDINOProp(DINO):
     """Implementation of `Grounding DINO: Marrying DINO with Grounded Pre-
     Training for Open-Set Object Detection.
 
@@ -232,7 +232,63 @@ class GroundingDINO(DINO):
 
         query = self.query_embedding.weight[:, None, :]
         query = query.repeat(1, bs, 1).transpose(0, 1)
-        
+
+        # 5, 900, 256 => [1, 900, 256] * 5 =>
+        # prop_vars = ...
+        # prop_vars = ...
+        # prop_vars = ...
+        # prop_vars = ...
+        # for i in num_frames:
+        #     if i == 0:
+        #         #### Current frame
+        #         topk_indices = torch.topk(
+        #             enc_outputs_class.max(-1)[0], k=self.num_queries, dim=1)[1]
+        #         # top_k_score: ([5, 900, 256]), 
+        #         # 5: num_frames, 900: num_queries, 256: cls_out_features
+        #         topk_score = torch.gather(
+        #             enc_outputs_class, 1,
+        #             topk_indices.unsqueeze(-1).repeat(1, 1, cls_out_features))
+        #         # topk_coords_unact: torch.Size([5, 900, 4]), 
+        #         # 5:num_frames, 900: num_queries, 4: bbox_head.reg_branches[-1].out_channels
+        #         topk_coords_unact = torch.gather(
+        #             enc_outputs_coord_unact, 1,
+        #             topk_indices.unsqueeze(-1).repeat(1, 1, 4))
+        #         topk_coords = topk_coords_unact.sigmoid()
+        #         topk_coords_unact = topk_coords_unact.detach()
+
+        #         query = self.query_embedding.weight[:, None, :]
+        #         query = query.repeat(1, bs, 1).transpose(0, 1)
+        #         #### Current frame
+        #     else:
+        #         #### TODO: need to be modified
+        #         topk_indices = torch.topk(
+        #             enc_outputs_class.max(-1)[0], k=self.num_queries, dim=1)[1]
+        #         # top_k_score: ([5, 900, 256]), 
+        #         # 5: num_frames, 900: num_queries, 256: cls_out_features
+        #         topk_score = torch.gather(
+        #             enc_outputs_class, 1,
+        #             topk_indices.unsqueeze(-1).repeat(1, 1, cls_out_features))
+        #         # topk_coords_unact: torch.Size([5, 900, 4]), 
+        #         # 5:num_frames, 900: num_queries, 4: bbox_head.reg_branches[-1].out_channels
+        #         topk_coords_unact = torch.gather(
+        #             enc_outputs_coord_unact, 1,
+        #             topk_indices.unsqueeze(-1).repeat(1, 1, 4))
+        #         topk_coords = topk_coords_unact.sigmoid()
+        #         topk_coords_unact = topk_coords_unact.detach()
+
+        #         query = self.query_embedding.weight[:, None, :]
+        #         query = query.repeat(1, bs, 1).transpose(0, 1)
+                
+            
+        #     ## TODO: For next frame, take out 5 feat, and let 900 -> 5
+        #     topk_score = ...
+        #     topk_coords = ...
+        #     topk_coords_unact = ...
+        #     query = ...
+
+
+        ## query should be [5, 900, 256]
+
         # TODO: view dn_query_generator as a black box
         if self.training:
             dn_label_query, dn_bbox_query, dn_mask, dn_meta = \
