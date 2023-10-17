@@ -346,7 +346,7 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
                             # TODO: perform detection with Grounding DINO
                             # detect objects
 
-                            result = inferencer(img, texts=exp)
+                            result = inferencer(img, texts=exp, frame_idx=t)
                             logits = torch.tensor(result['predictions'][0]['scores'])
                             boxes = torch.tensor(result['predictions'][0]['bboxes'])
 

@@ -57,6 +57,10 @@ class GroundingDINOProp(DINO):
             self.language_model.language_backbone.body.language_dim,
             self.embed_dims,
             bias=True)
+        
+        ## TODO: add prop. module
+        self.prev_query = {}
+
 
     def init_weights(self) -> None:
         """Initialize weights for Transformer and other components."""
@@ -214,24 +218,96 @@ class GroundingDINOProp(DINO):
         # multi-class classification, while DeformDETR, where the input
         # is `enc_outputs_class[..., 0]` selects according to scores of
         # binary classification.
+        if self.training:
+            pass
+        else:
+            # inference
+            ## TODO: how to check current frame?
+            curr_frame_idx = batch_data_samples[0].frame_idx
+            if curr_frame_idx == 0:
+                # first frame
+                topk_indices = torch.topk(
+                enc_outputs_class.max(-1)[0], k=self.num_queries, dim=1)[1]
+                # top_k_score: ([5, 900, 256]), 
+                # 5: num_frames, 900: num_queries, 256: cls_out_features
+                topk_score = torch.gather(
+                    enc_outputs_class, 1,
+                    topk_indices.unsqueeze(-1).repeat(1, 1, cls_out_features))
+                # topk_coords_unact: torch.Size([5, 900, 4]), 
+                # 5:num_frames, 900: num_queries, 4: bbox_head.reg_branches[-1].out_channels
+                topk_coords_unact = torch.gather(
+                    enc_outputs_coord_unact, 1,
+                    topk_indices.unsqueeze(-1).repeat(1, 1, 4))
+                topk_coords = topk_coords_unact.sigmoid()
+                topk_coords_unact = topk_coords_unact.detach()
 
-        topk_indices = torch.topk(
-        enc_outputs_class.max(-1)[0], k=self.num_queries, dim=1)[1]
-        # top_k_score: ([5, 900, 256]), 
-        # 5: num_frames, 900: num_queries, 256: cls_out_features
-        topk_score = torch.gather(
-            enc_outputs_class, 1,
-            topk_indices.unsqueeze(-1).repeat(1, 1, cls_out_features))
-        # topk_coords_unact: torch.Size([5, 900, 4]), 
-        # 5:num_frames, 900: num_queries, 4: bbox_head.reg_branches[-1].out_channels
-        topk_coords_unact = torch.gather(
-            enc_outputs_coord_unact, 1,
-            topk_indices.unsqueeze(-1).repeat(1, 1, 4))
-        topk_coords = topk_coords_unact.sigmoid()
-        topk_coords_unact = topk_coords_unact.detach()
+                query = self.query_embedding.weight[:, None, :]
+                query = query.repeat(1, bs, 1).transpose(0, 1)
+                # self.prev_query['top_k_indices'] = topk_indices
+                # self.prev_query['topk_score'] = topk_score
+                # self.prev_query['topk_coords_unact'] = topk_coords_unact
+                # self.prev_query['topk_coords'] = topk_coords
+                # self.prev_query['query'] = query
+                self.prev_query['enc_outputs_class'] = enc_outputs_class.detach()
+                self.prev_query['enc_outputs_coord_unact'] = enc_outputs_coord_unact.detach()
+            else:
+                # perform propagation
+                ### curr frame with 895 features
+                topk_indices = torch.topk(
+                enc_outputs_class.max(-1)[0], k=self.num_queries - 5, dim=1)[1]
+                # top_k_score: ([5, 900, 256]), 
+                # 5: num_frames, 900: num_queries, 256: cls_out_features
+                topk_score = torch.gather(
+                    enc_outputs_class, 1,
+                    topk_indices.unsqueeze(-1).repeat(1, 1, cls_out_features))
+                # topk_coords_unact: torch.Size([5, 900, 4]), 
+                # 5:num_frames, 900: num_queries, 4: bbox_head.reg_branches[-1].out_channels
+                topk_coords_unact = torch.gather(
+                    enc_outputs_coord_unact, 1,
+                    topk_indices.unsqueeze(-1).repeat(1, 1, 4))
+                topk_coords = topk_coords_unact.sigmoid()
+                topk_coords_unact = topk_coords_unact.detach()
 
-        query = self.query_embedding.weight[:, None, :]
-        query = query.repeat(1, bs, 1).transpose(0, 1)
+                query = self.query_embedding.weight[:, None, :]
+                query = query.repeat(1, bs, 1).transpose(0, 1)
+                
+                ### fuse with prev frame ###
+                # 1. take top 5 from prev frame
+                # 2. update with the curr frame
+                prev_enc_outputs_class = self.prev_query['enc_outputs_class']
+                prev_enc_outputs_coord_unact = self.prev_query['enc_outputs_coord_unact']
+                prev_topk_indices = torch.topk(
+                prev_enc_outputs_class.max(-1)[0], k=5, dim=1)[1]
+
+                prev_topk_score = torch.gather(
+                    prev_enc_outputs_class, 1,
+                    prev_topk_indices.unsqueeze(-1).repeat(1, 1, cls_out_features))
+                # topk_coords_unact: torch.Size([5, 900, 4]), 
+                # 5:num_frames, 900: num_queries, 4: bbox_head.reg_branches[-1].out_channels
+                prev_topk_coords_unact = torch.gather(
+                    prev_enc_outputs_coord_unact, 1,
+                    prev_topk_indices.unsqueeze(-1).repeat(1, 1, 4))
+                prev_topk_coords = prev_topk_coords_unact.sigmoid()
+                prev_topk_coords_unact = prev_topk_coords_unact.detach()
+                
+                # update with curr frame
+                topk_indices = torch.cat((prev_topk_indices, topk_indices), dim=1)
+                topk_score = torch.cat((prev_topk_score, topk_score), dim=1)
+                topk_coords_unact = torch.cat((prev_topk_coords_unact, topk_coords_unact), dim=1)
+                topk_coords = torch.cat((prev_topk_coords, topk_coords), dim=1)
+                
+                ## BUG: query how to do?
+                # query = self.query_embedding.weight[:, None, :]
+                # query = query.repeat(1, bs, 1).transpose(0, 1)
+
+                # self.prev_query['topk_indices'] = topk_indices
+                # self.prev_query['topk_score'] = topk_score
+                # self.prev_query['topk_coords_unact'] = topk_coords_unact
+                # self.prev_query['topk_coords'] = topk_coords
+                # self.prev_query['query'] = query
+                self.prev_query['enc_outputs_class'] = enc_outputs_class.detach()
+                self.prev_query['enc_outputs_coord_unact'] = enc_outputs_coord_unact.detach()
+
 
         # 5, 900, 256 => [1, 900, 256] * 5 =>
         # prop_vars = ...

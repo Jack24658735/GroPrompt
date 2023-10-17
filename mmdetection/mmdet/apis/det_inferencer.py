@@ -65,7 +65,8 @@ class DetInferencer(BaseInferencer):
             bar during the inference process. Defaults to True.
     """
 
-    preprocess_kwargs: set = set()
+    # preprocess_kwargs: set = set()
+    preprocess_kwargs: set = {'frame_idx'}
     forward_kwargs: set = set()
     visualize_kwargs: set = {
         'return_vis',
@@ -359,7 +360,6 @@ class DetInferencer(BaseInferencer):
             visualize_kwargs,
             postprocess_kwargs,
         ) = self._dispatch_kwargs(**kwargs)
-
         ori_inputs = self._inputs_to_list(inputs)
 
         if texts is not None and isinstance(texts, str):
@@ -388,10 +388,13 @@ class DetInferencer(BaseInferencer):
 
         inputs = self.preprocess(
             ori_inputs, batch_size=batch_size, **preprocess_kwargs)
-
         results_dict = {'predictions': [], 'visualization': []}
         for ori_imgs, data in (track(inputs, description='Inference')
                                if self.show_progress else inputs):
+            # add frame idx info. for propagation when inference
+            for item in data['data_samples']:
+                item.frame_idx = kwargs['frame_idx']
+            
             preds = self.forward(data, **forward_kwargs)
             visualization = self.visualize(
                 ori_imgs,

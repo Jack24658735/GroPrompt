@@ -73,6 +73,17 @@ R-VOS Project
     # train on multiple GPUs
     bash mmdetection/tools/dist_train.sh $config_path /*NUM_GPU*/ --work-dir $output_path --auto-scale-lr
     ```
+# Run our code in mmdetection (Inference)
+* Note: the default will run 1 annotation to save time. If you want to run all annotations, please set `--run_anno_id 4`.
+* Inference by G-DINO only
+    ```bash
+        bash ./scripts/online_davis_dino_mmdet.sh ./outputs_dino --g_dino_ckpt_path ./mm_weights/groundingdino_swinb_cogcoor_mmdet-55949c9c.pth --g_dino_config_path ./mmdetection/configs/grounding_dino/grounding_dino_swin-b_rvos.py
+    ```
+* Inference by our trained G-DINO + SAM
+    ```bash
+        bash ./scripts/online_davis_sam_mmdet.sh ./outputs_gsam ../Grounded-Segment-Anything/sam_hq_vit_h.pth --g_dino_ckpt_path ./mm_weights/groundingdino_swinb_cogcoor_mmdet-55949c9c.pth --g_dino_config_path ./mmdetection/configs/grounding_dino/grounding_dino_swin-b_rvos.py
+    ```
+
 
 ## Run our code (Training)
 * Prepare data & model weight (e.g., trained G-DINO checkpoint)
