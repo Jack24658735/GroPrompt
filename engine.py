@@ -22,6 +22,7 @@ from datasets.a2d_eval import calculate_precision_at_k_and_iou_metrics
 import torchvision
 from segment_anything.utils.transforms import ResizeLongestSide
 
+import mmcv
 
 
 def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
@@ -453,32 +454,64 @@ def evaluate_online_a2d(model, data_loader, postprocessor, device, args):
 
 
 @torch.no_grad()
-def evaluate_a2d_g_sam(model, inferencer, data_loader, device, args):
-    model.eval()
+def evaluate_a2d_g_sam(sam_predictor, inferencer, data_loader, device, args):
     predictions = []
     metric_logger = utils.MetricLogger(delimiter="  ")
     header = 'Test:'
 
     for samples, targets in metric_logger.log_every(data_loader, 10, header):
         
-        import ipdb; ipdb.set_trace()
-        
         image_ids = [t['image_id'] for t in targets]
 
         samples = samples.to(device)
         captions = [t["caption"] for t in targets]
         targets = utils.targets_to(targets, device)
+        img_input = samples.tensors.cpu().numpy().squeeze().transpose(1,2,0)
+        # (h, w, 3)
+        result = inferencer(img_input, texts=captions, frame_idx=0) # NOTE: frame_idx is dummy
+        logits = torch.tensor(result['predictions'][0]['scores'])
+        boxes = torch.tensor(result['predictions'][0]['bboxes'])
+        # Note!!! handle special cases for "india"
+        if len(boxes) == 0:
+            boxes_xyxy = torch.zeros((1, 4))
+            ### DONE:
+            # if this situation, no need SAM! (just all zeros)
+            masks = torch.zeros(masks.shape).to(device)
+            # pred_masks.append(masks)
+            # pred_boxes.append(boxes_xyxy)
+            # pred_logits.append(torch.zeros((1,)))
+        else:
+            max_logit, max_idx = torch.max(logits, dim=0)
+            boxes = boxes[max_idx].unsqueeze(0) ## shape: (1, 4)
+            import ipdb; ipdb.set_trace()
 
-        outputs = model(samples, captions, targets)
+            sam_predictor.set_image(img_input)
+            boxes_xyxy = boxes
+        
+            transformed_boxes = sam_predictor.transform.apply_boxes_torch(boxes_xyxy, img_input.shape[:2]).to(device)
+            # print(transformed_boxes)
+            # print(transformed_boxes.shape)
+            masks, _, _ = sam_predictor.predict_torch(
+                        point_coords = None,
+                        point_labels = None,
+                        boxes = transformed_boxes,
+                        multimask_output = False,
+                    )
+            # print(f'{frame} {masks.shape}')
+            # print(f'obj: {obj_id}, t: {t}, box shape: {masks.shape}')
+            # pred_masks.append(masks)
+            # pred_boxes.append(boxes_xyxy)
+            # pred_logits.append(max_logit.unsqueeze(0))
+        # outputs = model(samples, captions, targets)
 
-        orig_target_sizes = torch.stack([t["orig_size"] for t in targets], dim=0)
-        target_sizes = torch.stack([t["size"] for t in targets], dim=0)
-        processed_outputs = postprocessor(outputs, orig_target_sizes, target_sizes)
+        # orig_target_sizes = torch.stack([t["orig_size"] for t in targets], dim=0)
+        # target_sizes = torch.stack([t["size"] for t in targets], dim=0)
+        # processed_outputs = postprocessor(outputs, orig_target_sizes, target_sizes)
 
         # get the best-matched segmentation
-        max_idx = processed_outputs[0]['scores'].max(-1)[1]
-        predictions.append({ 'image_id': image_ids[0], 'category_id': 1, 'segmentation': processed_outputs[0]['rle_masks'][max_idx],
-                             'score': processed_outputs[0]['scores'][max_idx].item()})
+        # max_idx = processed_outputs[0]['scores'].max(-1)[1]
+        predictions.append({ 'image_id': image_ids[0], 'category_id': 1, 'segmentation': masks,
+                             'score': max_logit})
 
         # for p, image_id in zip(processed_outputs, image_ids):
         #     for s, m in zip(p['scores'], p['rle_masks']):

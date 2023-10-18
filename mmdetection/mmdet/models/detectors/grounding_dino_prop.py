@@ -59,7 +59,7 @@ class GroundingDINOProp(DINO):
             bias=True)
         
         ## TODO: add prop. module
-        self.prev_query = {}
+        self.prev_frame_q = {}
 
 
     def init_weights(self) -> None:
@@ -218,11 +218,126 @@ class GroundingDINOProp(DINO):
         # multi-class classification, while DeformDETR, where the input
         # is `enc_outputs_class[..., 0]` selects according to scores of
         # binary classification.
+        num_prop = 100
         if self.training:
-            pass
+            for i in range(bs):
+                # perform prop.
+                if i == 0: # first frame
+                    topk_indices = torch.topk(
+                    enc_outputs_class.max(-1)[0], k=self.num_queries, dim=1)[1]
+                    # top_k_score: ([5, 900, 256]), 
+                    # 5: num_frames, 900: num_queries, 256: cls_out_features
+                    topk_score = torch.gather(
+                        enc_outputs_class, 1,
+                        topk_indices.unsqueeze(-1).repeat(1, 1, cls_out_features))
+                    # topk_coords_unact: torch.Size([5, 900, 4]), 
+                    # 5:num_frames, 900: num_queries, 4: bbox_head.reg_branches[-1].out_channels
+                    topk_coords_unact = torch.gather(
+                        enc_outputs_coord_unact, 1,
+                        topk_indices.unsqueeze(-1).repeat(1, 1, 4))
+                    topk_coords = topk_coords_unact.sigmoid()
+                    topk_coords_unact = topk_coords_unact.detach()
+
+                    query = self.query_embedding.weight[:, None, :]
+                    query = query.repeat(1, bs, 1).transpose(0, 1)
+
+                    ## TODO: 900 -> 100 and save
+                    # detach first
+                    enc_outputs_class_for_prop = enc_outputs_class.detach()
+                    enc_outputs_coord_unact_for_prop = enc_outputs_coord_unact.detach()
+                    # select dim=900 features
+                    enc_outputs_class_for_prop = enc_outputs_class_for_prop[0, topk_indices[0]].unsqueeze(0)
+                    enc_outputs_coord_unact_for_prop = enc_outputs_coord_unact_for_prop[0, topk_indices[0]].unsqueeze(0)
+
+                    topk_indices_prop = torch.topk(enc_outputs_class_for_prop.max(-1)[0], k=num_prop, dim=1)[1]
+                    topk_score_prop = torch.gather(
+                        enc_outputs_class_for_prop, 1,
+                        topk_indices_prop.unsqueeze(-1).repeat(1, 1, cls_out_features))
+                    # topk_coords_unact: torch.Size([5, 900, 4]), 
+                    # 5:num_frames, 900: num_queries, 4: bbox_head.reg_branches[-1].out_channels
+                    topk_coords_unact_prop = torch.gather(
+                        enc_outputs_coord_unact_for_prop, 1,
+                        topk_indices_prop.unsqueeze(-1).repeat(1, 1, 4))
+                    topk_coords_prop = topk_coords_unact_prop.sigmoid()
+                    topk_coords_unact_prop = topk_coords_unact_prop.detach()
+                    # select from here => 900 to 100
+                    query_for_prop = query[0, topk_indices_prop[0]].detach().unsqueeze(0)
+                else: # other frames
+                    # perform propagation
+                    # select 900 features
+                    topk_indices = torch.topk(
+                    enc_outputs_class.max(-1)[0], k=self.num_queries, dim=1)[1]
+                    # top_k_score: ([5, 900, 256]), 
+                    # 5: num_frames, 900: num_queries, 256: cls_out_features
+                    topk_score = torch.gather(
+                        enc_outputs_class, 1,
+                        topk_indices.unsqueeze(-1).repeat(1, 1, cls_out_features))
+                    # topk_coords_unact: torch.Size([5, 900, 4]), 
+                    # 5:num_frames, 900: num_queries, 4: bbox_head.reg_branches[-1].out_channels
+                    topk_coords_unact = torch.gather(
+                        enc_outputs_coord_unact, 1,
+                        topk_indices.unsqueeze(-1).repeat(1, 1, 4))
+                    topk_coords = topk_coords_unact.sigmoid()
+                    topk_coords_unact = topk_coords_unact.detach()
+
+                    query = self.query_embedding.weight[:, None, :]
+                    query = query.repeat(1, bs, 1).transpose(0, 1)
+
+                    ## build up current frame features
+                    enc_outputs_class_curr_frame = enc_outputs_class.detach()
+                    enc_outputs_coord_unact_curr_frame = enc_outputs_coord_unact.detach()
+                    # NOTE: build up top k indices for selecting query
+                    # these two feature is 900 dim
+                    enc_outputs_class_curr_frame = enc_outputs_class_curr_frame[0, topk_indices[0]].unsqueeze(0)
+                    enc_outputs_coord_unact_curr_frame = enc_outputs_coord_unact_curr_frame[0, topk_indices[0]].unsqueeze(0)
+
+                    # NOTE: select 900 - num_prop features to be used here
+                    topk_indices_curr_frame = torch.topk(enc_outputs_coord_unact_curr_frame.max(-1)[0], k=self.num_queries - num_prop, dim=1)[1]
+                    topk_score_curr_frame = torch.gather(
+                        enc_outputs_class_curr_frame, 1,
+                        topk_indices_curr_frame.unsqueeze(-1).repeat(1, 1, cls_out_features))
+                    topk_coords_unact_curr_frame = torch.gather(
+                        enc_outputs_coord_unact_curr_frame, 1,
+                        topk_indices_curr_frame.unsqueeze(-1).repeat(1, 1, 4))
+                    topk_coords_curr_frame = topk_coords_unact_curr_frame.sigmoid()
+                    topk_coords_unact_curr_frame = topk_coords_unact_curr_frame.detach()
+                    query_curr_frame = query[0, topk_indices_curr_frame[0]].detach().unsqueeze(0) # select 900 - num_prop features
+
+                    ## NOTE: 900 -> 100 and save for the next frame
+                    topk_indices_prop = torch.topk(enc_outputs_class_curr_frame.max(-1)[0], k=num_prop, dim=1)[1]
+                    topk_score_prop = torch.gather(
+                        enc_outputs_class_curr_frame, 1,
+                        topk_indices_prop.unsqueeze(-1).repeat(1, 1, cls_out_features))
+                    topk_coords_unact_prop = torch.gather(
+                        enc_outputs_coord_unact_curr_frame, 1,
+                        topk_indices_prop.unsqueeze(-1).repeat(1, 1, 4))
+                    topk_coords_prop = topk_coords_unact_prop.sigmoid()
+                    topk_coords_unact_prop = topk_coords_unact_prop.detach()
+                    query_for_prop = query[0, topk_indices_prop[0]].detach().unsqueeze(0) # select from here => 900 to 100
+                    
+                    # take out prev frame features
+                    prev_topk_indices = self.prev_frame_q['topk_indices']
+                    prev_topk_score = self.prev_frame_q['topk_score']
+                    prev_topk_coords_unact = self.prev_frame_q['topk_coords_unact']
+                    prev_topk_coords = self.prev_frame_q['topk_coords']
+                    prev_query = self.prev_frame_q['query']
+                    # concat with curr frame feature and overwrite
+                    topk_indices = torch.cat((prev_topk_indices, topk_indices_curr_frame), dim=1)
+                    topk_score = torch.cat((prev_topk_score, topk_score_curr_frame), dim=1)
+                    topk_coords_unact = torch.cat((prev_topk_coords_unact, topk_coords_unact_curr_frame), dim=1)
+                    topk_coords = torch.cat((prev_topk_coords, topk_coords_curr_frame), dim=1)
+                    query = torch.cat((prev_query, query_curr_frame), dim=1)
+                    
+                # save for the next frame
+                self.prev_frame_q['topk_indices'] = topk_indices_prop
+                self.prev_frame_q['topk_score'] = topk_score_prop
+                self.prev_frame_q['topk_coords_unact'] = topk_coords_unact_prop
+                self.prev_frame_q['topk_coords'] = topk_coords_prop
+                self.prev_frame_q['query'] = query_for_prop
+
         else:
             # inference
-            ## TODO: how to check current frame?
+            ## possible options: 10, 50, 100, 200, 500, 800
             curr_frame_idx = batch_data_samples[0].frame_idx
             if curr_frame_idx == 0:
                 # first frame
@@ -243,18 +358,33 @@ class GroundingDINOProp(DINO):
 
                 query = self.query_embedding.weight[:, None, :]
                 query = query.repeat(1, bs, 1).transpose(0, 1)
-                # self.prev_query['top_k_indices'] = topk_indices
-                # self.prev_query['topk_score'] = topk_score
-                # self.prev_query['topk_coords_unact'] = topk_coords_unact
-                # self.prev_query['topk_coords'] = topk_coords
-                # self.prev_query['query'] = query
-                self.prev_query['enc_outputs_class'] = enc_outputs_class.detach()
-                self.prev_query['enc_outputs_coord_unact'] = enc_outputs_coord_unact.detach()
+
+                ## TODO: 900 -> 100 and save
+                # detach first
+                enc_outputs_class_for_prop = enc_outputs_class.detach()
+                enc_outputs_coord_unact_for_prop = enc_outputs_coord_unact.detach()
+                # select dim=900 features
+                enc_outputs_class_for_prop = enc_outputs_class_for_prop[0, topk_indices[0]].unsqueeze(0)
+                enc_outputs_coord_unact_for_prop = enc_outputs_coord_unact_for_prop[0, topk_indices[0]].unsqueeze(0)
+
+                topk_indices_prop = torch.topk(enc_outputs_class_for_prop.max(-1)[0], k=num_prop, dim=1)[1]
+                topk_score_prop = torch.gather(
+                    enc_outputs_class_for_prop, 1,
+                    topk_indices_prop.unsqueeze(-1).repeat(1, 1, cls_out_features))
+                # topk_coords_unact: torch.Size([5, 900, 4]), 
+                # 5:num_frames, 900: num_queries, 4: bbox_head.reg_branches[-1].out_channels
+                topk_coords_unact_prop = torch.gather(
+                    enc_outputs_coord_unact_for_prop, 1,
+                    topk_indices_prop.unsqueeze(-1).repeat(1, 1, 4))
+                topk_coords_prop = topk_coords_unact_prop.sigmoid()
+                topk_coords_unact_prop = topk_coords_unact_prop.detach()
+                # select from here => 900 to 100
+                query_for_prop = query[0, topk_indices_prop[0]].detach().unsqueeze(0)
             else:
                 # perform propagation
-                ### curr frame with 895 features
+                # select 900 features
                 topk_indices = torch.topk(
-                enc_outputs_class.max(-1)[0], k=self.num_queries - 5, dim=1)[1]
+                enc_outputs_class.max(-1)[0], k=self.num_queries, dim=1)[1]
                 # top_k_score: ([5, 900, 256]), 
                 # 5: num_frames, 900: num_queries, 256: cls_out_features
                 topk_score = torch.gather(
@@ -270,44 +400,58 @@ class GroundingDINOProp(DINO):
 
                 query = self.query_embedding.weight[:, None, :]
                 query = query.repeat(1, bs, 1).transpose(0, 1)
-                
-                ### fuse with prev frame ###
-                # 1. take top 5 from prev frame
-                # 2. update with the curr frame
-                prev_enc_outputs_class = self.prev_query['enc_outputs_class']
-                prev_enc_outputs_coord_unact = self.prev_query['enc_outputs_coord_unact']
-                prev_topk_indices = torch.topk(
-                prev_enc_outputs_class.max(-1)[0], k=5, dim=1)[1]
 
-                prev_topk_score = torch.gather(
-                    prev_enc_outputs_class, 1,
-                    prev_topk_indices.unsqueeze(-1).repeat(1, 1, cls_out_features))
-                # topk_coords_unact: torch.Size([5, 900, 4]), 
-                # 5:num_frames, 900: num_queries, 4: bbox_head.reg_branches[-1].out_channels
-                prev_topk_coords_unact = torch.gather(
-                    prev_enc_outputs_coord_unact, 1,
-                    prev_topk_indices.unsqueeze(-1).repeat(1, 1, 4))
-                prev_topk_coords = prev_topk_coords_unact.sigmoid()
-                prev_topk_coords_unact = prev_topk_coords_unact.detach()
-                
-                # update with curr frame
-                topk_indices = torch.cat((prev_topk_indices, topk_indices), dim=1)
-                topk_score = torch.cat((prev_topk_score, topk_score), dim=1)
-                topk_coords_unact = torch.cat((prev_topk_coords_unact, topk_coords_unact), dim=1)
-                topk_coords = torch.cat((prev_topk_coords, topk_coords), dim=1)
-                
-                ## BUG: query how to do?
-                # query = self.query_embedding.weight[:, None, :]
-                # query = query.repeat(1, bs, 1).transpose(0, 1)
+                ## build up current frame features
+                enc_outputs_class_curr_frame = enc_outputs_class.detach()
+                enc_outputs_coord_unact_curr_frame = enc_outputs_coord_unact.detach()
+                # NOTE: build up top k indices for selecting query
+                # these two feature is 900 dim
+                enc_outputs_class_curr_frame = enc_outputs_class_curr_frame[0, topk_indices[0]].unsqueeze(0)
+                enc_outputs_coord_unact_curr_frame = enc_outputs_coord_unact_curr_frame[0, topk_indices[0]].unsqueeze(0)
 
-                # self.prev_query['topk_indices'] = topk_indices
-                # self.prev_query['topk_score'] = topk_score
-                # self.prev_query['topk_coords_unact'] = topk_coords_unact
-                # self.prev_query['topk_coords'] = topk_coords
-                # self.prev_query['query'] = query
-                self.prev_query['enc_outputs_class'] = enc_outputs_class.detach()
-                self.prev_query['enc_outputs_coord_unact'] = enc_outputs_coord_unact.detach()
+                # NOTE: select 900 - num_prop features to be used here
+                topk_indices_curr_frame = torch.topk(enc_outputs_coord_unact_curr_frame.max(-1)[0], k=self.num_queries - num_prop, dim=1)[1]
+                topk_score_curr_frame = torch.gather(
+                    enc_outputs_class_curr_frame, 1,
+                    topk_indices_curr_frame.unsqueeze(-1).repeat(1, 1, cls_out_features))
+                topk_coords_unact_curr_frame = torch.gather(
+                    enc_outputs_coord_unact_curr_frame, 1,
+                    topk_indices_curr_frame.unsqueeze(-1).repeat(1, 1, 4))
+                topk_coords_curr_frame = topk_coords_unact_curr_frame.sigmoid()
+                topk_coords_unact_curr_frame = topk_coords_unact_curr_frame.detach()
+                query_curr_frame = query[0, topk_indices_curr_frame[0]].detach().unsqueeze(0) # select 900 - num_prop features
 
+                ## NOTE: 900 -> 100 and save for the next frame
+                topk_indices_prop = torch.topk(enc_outputs_class_curr_frame.max(-1)[0], k=num_prop, dim=1)[1]
+                topk_score_prop = torch.gather(
+                    enc_outputs_class_curr_frame, 1,
+                    topk_indices_prop.unsqueeze(-1).repeat(1, 1, cls_out_features))
+                topk_coords_unact_prop = torch.gather(
+                    enc_outputs_coord_unact_curr_frame, 1,
+                    topk_indices_prop.unsqueeze(-1).repeat(1, 1, 4))
+                topk_coords_prop = topk_coords_unact_prop.sigmoid()
+                topk_coords_unact_prop = topk_coords_unact_prop.detach()
+                query_for_prop = query[0, topk_indices_prop[0]].detach().unsqueeze(0) # select from here => 900 to 100
+                
+                # take out prev frame features
+                prev_topk_indices = self.prev_frame_q['topk_indices']
+                prev_topk_score = self.prev_frame_q['topk_score']
+                prev_topk_coords_unact = self.prev_frame_q['topk_coords_unact']
+                prev_topk_coords = self.prev_frame_q['topk_coords']
+                prev_query = self.prev_frame_q['query']
+                # concat with curr frame feature and overwrite
+                topk_indices = torch.cat((prev_topk_indices, topk_indices_curr_frame), dim=1)
+                topk_score = torch.cat((prev_topk_score, topk_score_curr_frame), dim=1)
+                topk_coords_unact = torch.cat((prev_topk_coords_unact, topk_coords_unact_curr_frame), dim=1)
+                topk_coords = torch.cat((prev_topk_coords, topk_coords_curr_frame), dim=1)
+                query = torch.cat((prev_query, query_curr_frame), dim=1)
+                
+            # save for the next frame
+            self.prev_frame_q['topk_indices'] = topk_indices_prop
+            self.prev_frame_q['topk_score'] = topk_score_prop
+            self.prev_frame_q['topk_coords_unact'] = topk_coords_unact_prop
+            self.prev_frame_q['topk_coords'] = topk_coords_prop
+            self.prev_frame_q['query'] = query_for_prop
 
         # 5, 900, 256 => [1, 900, 256] * 5 =>
         # prop_vars = ...

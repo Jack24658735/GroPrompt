@@ -19,6 +19,7 @@ import random
 
 import h5py
 from pycocotools.mask import encode, area
+import mmcv
 
 
 def get_image_id(video_id, frame_idx, ref_instance_a2d_id):
@@ -74,6 +75,7 @@ class A2DSentencesDataset(Dataset):
 
             # read the source window frames:
             video_frames, _, _ = read_video(os.path.join(self.videos_dir, f'{video_id}.mp4'), pts_unit='sec')  # (T, H, W, C)
+            # video_frames = mmcv.VideoReader(os.path.join(self.videos_dir, f'{video_id}.mp4'))
             vid_len = len(video_frames)
             # note that the original a2d dataset is 1 indexed, so we have to subtract 1 from frame_idx
             frame_id = frame_idx - 1
@@ -128,9 +130,9 @@ class A2DSentencesDataset(Dataset):
             imgs, labels, boxes, masks, valid = [], [], [], [], []
             for j in range(self.num_frames):
                 frame_indx = sample_indx[j]
-                img = F.to_pil_image(video_frames[frame_indx].permute(2, 0, 1))
+                img = video_frames[frame_indx].permute(2, 0, 1)
+                # img = F.to_pil_image(video_frames[frame_indx].permute(2, 0, 1))
                 imgs.append(img)
-
             # read the instance mask
             frame_annot_path = os.path.join(self.mask_annotations_dir, video_id, f'{frame_idx:05d}.h5')
             f = h5py.File(frame_annot_path)
@@ -180,9 +182,8 @@ class A2DSentencesDataset(Dataset):
                 'size': torch.as_tensor([int(h), int(w)]),
                 'image_id': get_image_id(video_id,frame_idx, instance_id)
             }
-
             # "boxes" normalize to [0, 1] and transform from xyxy to cxcywh in self._transform
-            imgs, target = self._transforms(imgs, target) 
+            # imgs, target = self._transforms(imgs, target) 
             imgs = torch.stack(imgs, dim=0) # [T, 3, H, W]
             
             # FIXME: handle "valid", since some box may be removed due to random crop
