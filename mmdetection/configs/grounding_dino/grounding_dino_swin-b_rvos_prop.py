@@ -59,6 +59,7 @@ model = dict(
             loss_weight=0.0),  # 2.0 in DeformDETR
         loss_bbox=dict(type='L1Loss', loss_weight=5.0),
         loss_iou=dict(type='GIoULoss', loss_weight=2.0)),
+    num_prop=10,
 )
 
 

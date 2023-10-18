@@ -31,6 +31,7 @@ class GroundingDINOProp(DINO):
 
         self.language_model_cfg = language_model
         self._special_tokens = '. '
+        self.num_prop = kwargs['num_prop']
         super().__init__(*args, **kwargs)
 
     def _init_layers(self) -> None:
@@ -218,7 +219,7 @@ class GroundingDINOProp(DINO):
         # multi-class classification, while DeformDETR, where the input
         # is `enc_outputs_class[..., 0]` selects according to scores of
         # binary classification.
-        num_prop = 100
+        ## possible options: 10, 50, 100, 200, 500, 800
         if self.training:
             for i in range(bs):
                 # perform prop.
@@ -249,7 +250,7 @@ class GroundingDINOProp(DINO):
                     enc_outputs_class_for_prop = enc_outputs_class_for_prop[0, topk_indices[0]].unsqueeze(0)
                     enc_outputs_coord_unact_for_prop = enc_outputs_coord_unact_for_prop[0, topk_indices[0]].unsqueeze(0)
 
-                    topk_indices_prop = torch.topk(enc_outputs_class_for_prop.max(-1)[0], k=num_prop, dim=1)[1]
+                    topk_indices_prop = torch.topk(enc_outputs_class_for_prop.max(-1)[0], k=self.num_prop, dim=1)[1]
                     topk_score_prop = torch.gather(
                         enc_outputs_class_for_prop, 1,
                         topk_indices_prop.unsqueeze(-1).repeat(1, 1, cls_out_features))
@@ -292,7 +293,7 @@ class GroundingDINOProp(DINO):
                     enc_outputs_coord_unact_curr_frame = enc_outputs_coord_unact_curr_frame[0, topk_indices[0]].unsqueeze(0)
 
                     # NOTE: select 900 - num_prop features to be used here
-                    topk_indices_curr_frame = torch.topk(enc_outputs_coord_unact_curr_frame.max(-1)[0], k=self.num_queries - num_prop, dim=1)[1]
+                    topk_indices_curr_frame = torch.topk(enc_outputs_coord_unact_curr_frame.max(-1)[0], k=self.num_queries - self.num_prop, dim=1)[1]
                     topk_score_curr_frame = torch.gather(
                         enc_outputs_class_curr_frame, 1,
                         topk_indices_curr_frame.unsqueeze(-1).repeat(1, 1, cls_out_features))
@@ -304,7 +305,7 @@ class GroundingDINOProp(DINO):
                     query_curr_frame = query[0, topk_indices_curr_frame[0]].detach().unsqueeze(0) # select 900 - num_prop features
 
                     ## NOTE: 900 -> 100 and save for the next frame
-                    topk_indices_prop = torch.topk(enc_outputs_class_curr_frame.max(-1)[0], k=num_prop, dim=1)[1]
+                    topk_indices_prop = torch.topk(enc_outputs_class_curr_frame.max(-1)[0], k=self.num_prop, dim=1)[1]
                     topk_score_prop = torch.gather(
                         enc_outputs_class_curr_frame, 1,
                         topk_indices_prop.unsqueeze(-1).repeat(1, 1, cls_out_features))
@@ -337,7 +338,6 @@ class GroundingDINOProp(DINO):
 
         else:
             # inference
-            ## possible options: 10, 50, 100, 200, 500, 800
             curr_frame_idx = batch_data_samples[0].frame_idx
             if curr_frame_idx == 0:
                 # first frame
@@ -367,7 +367,7 @@ class GroundingDINOProp(DINO):
                 enc_outputs_class_for_prop = enc_outputs_class_for_prop[0, topk_indices[0]].unsqueeze(0)
                 enc_outputs_coord_unact_for_prop = enc_outputs_coord_unact_for_prop[0, topk_indices[0]].unsqueeze(0)
 
-                topk_indices_prop = torch.topk(enc_outputs_class_for_prop.max(-1)[0], k=num_prop, dim=1)[1]
+                topk_indices_prop = torch.topk(enc_outputs_class_for_prop.max(-1)[0], k=self.num_prop, dim=1)[1]
                 topk_score_prop = torch.gather(
                     enc_outputs_class_for_prop, 1,
                     topk_indices_prop.unsqueeze(-1).repeat(1, 1, cls_out_features))
@@ -410,7 +410,7 @@ class GroundingDINOProp(DINO):
                 enc_outputs_coord_unact_curr_frame = enc_outputs_coord_unact_curr_frame[0, topk_indices[0]].unsqueeze(0)
 
                 # NOTE: select 900 - num_prop features to be used here
-                topk_indices_curr_frame = torch.topk(enc_outputs_coord_unact_curr_frame.max(-1)[0], k=self.num_queries - num_prop, dim=1)[1]
+                topk_indices_curr_frame = torch.topk(enc_outputs_coord_unact_curr_frame.max(-1)[0], k=self.num_queries - self.num_prop, dim=1)[1]
                 topk_score_curr_frame = torch.gather(
                     enc_outputs_class_curr_frame, 1,
                     topk_indices_curr_frame.unsqueeze(-1).repeat(1, 1, cls_out_features))
@@ -422,7 +422,7 @@ class GroundingDINOProp(DINO):
                 query_curr_frame = query[0, topk_indices_curr_frame[0]].detach().unsqueeze(0) # select 900 - num_prop features
 
                 ## NOTE: 900 -> 100 and save for the next frame
-                topk_indices_prop = torch.topk(enc_outputs_class_curr_frame.max(-1)[0], k=num_prop, dim=1)[1]
+                topk_indices_prop = torch.topk(enc_outputs_class_curr_frame.max(-1)[0], k=self.num_prop, dim=1)[1]
                 topk_score_prop = torch.gather(
                     enc_outputs_class_curr_frame, 1,
                     topk_indices_prop.unsqueeze(-1).repeat(1, 1, cls_out_features))

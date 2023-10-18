@@ -56,6 +56,7 @@ class DetectionTransformer(BaseDetector, metaclass=ABCMeta):
                  train_cfg: OptConfigType = None,
                  test_cfg: OptConfigType = None,
                  data_preprocessor: OptConfigType = None,
+                 num_prop: int = 0,
                  init_cfg: OptMultiConfig = None) -> None:
         super().__init__(
             data_preprocessor=data_preprocessor, init_cfg=init_cfg)
@@ -68,6 +69,8 @@ class DetectionTransformer(BaseDetector, metaclass=ABCMeta):
         self.decoder = decoder
         self.positional_encoding = positional_encoding
         self.num_queries = num_queries
+
+        self.num_prop = num_prop
 
         # init model layers
         self.backbone = MODELS.build(backbone)
