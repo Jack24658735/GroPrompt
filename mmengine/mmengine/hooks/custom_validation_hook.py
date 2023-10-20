@@ -35,6 +35,7 @@ class CustomValidationHook(Hook):
         anno0_dir = os.path.join(infer_dir, "valid", "anno_0")
         if is_main_process():
             d_lora_hook = {'type': 'AddLoRAHook'}
+            cfg_path = runner.cfg.filename.split('/')[-1]
             if d_lora_hook in runner.cfg['custom_hooks']:
                 cmd = [
                     'python3',
@@ -48,7 +49,8 @@ class CustomValidationHook(Hook):
                     # setup the model path for loading
                     '--g_dino_ckpt_path=' + f'{runner.work_dir}/epoch_{self.curr_epoch}.pth',
                     '--use_gdino_LORA',
-                    '--g_dino_config_path=' + f'{runner.work_dir}/grounding_dino_swin-b_rvos.py',
+                    '--g_dino_config_path=' + f'{runner.work_dir}/{cfg_path}',
+                    
                 ]
             else:
                 cmd = [
@@ -62,7 +64,7 @@ class CustomValidationHook(Hook):
                     '--use_trained_gdino',
                     # setup the model path for loading
                     '--g_dino_ckpt_path=' + f'{runner.work_dir}/epoch_{self.curr_epoch}.pth',
-                    '--g_dino_config_path=' + f'{runner.work_dir}/grounding_dino_swin-b_rvos.py',
+                    '--g_dino_config_path=' + f'{runner.work_dir}/{cfg_path}',
                 ]
             # Run the command
             subprocess.run(cmd)
@@ -93,4 +95,7 @@ class CustomValidationHook(Hook):
                         'best_epoch': self.best_epoch,
                         'best_score': self.best_score}
             print(log_stats)
+            # TODO: save log outside at work_dir
+            with open(os.path.join(runner.work_dir, 'our_log.txt'), 'a') as f:
+                f.write(str(log_stats))
             self.curr_epoch += 1

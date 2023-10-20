@@ -26,6 +26,9 @@ class FreezeLayerHook(Hook):
         # Enable transformer decoder
         for param in model.decoder.parameters():
             param.requires_grad = True
+        # Enable reg branch in bbox head
+        for param in model.bbox_head.reg_branches.parameters():
+            param.requires_grad = True
         n_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
         total_parameters = sum(p.numel() for p in model.parameters())
         print('number of params for tuning:', n_parameters)

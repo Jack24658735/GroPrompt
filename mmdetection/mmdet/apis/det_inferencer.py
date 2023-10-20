@@ -392,8 +392,9 @@ class DetInferencer(BaseInferencer):
         for ori_imgs, data in (track(inputs, description='Inference')
                                if self.show_progress else inputs):
             # add frame idx info. for propagation when inference
-            for item in data['data_samples']:
-                item.frame_idx = kwargs['frame_idx']
+            if kwargs.get('frame_idx') != None:
+                for item in data['data_samples']:
+                    item.frame_idx = kwargs['frame_idx']
             
             preds = self.forward(data, **forward_kwargs)
             visualization = self.visualize(

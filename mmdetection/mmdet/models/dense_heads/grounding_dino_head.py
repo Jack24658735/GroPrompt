@@ -195,7 +195,6 @@ class GroundingDINOHead(DINOHead):
                                     dtype=torch.float32)
         labels[pos_inds] = gt_instances.positive_maps[pos_assigned_gt_inds]
         label_weights = gt_bboxes.new_ones(num_bboxes)
-
         # bbox targets
         bbox_targets = torch.zeros_like(bbox_pred, dtype=gt_bboxes.dtype)
         bbox_weights = torch.zeros_like(bbox_pred, dtype=gt_bboxes.dtype)
@@ -583,6 +582,10 @@ class GroundingDINOHead(DINOHead):
         bbox_preds = bbox_preds.reshape(-1, 4)
         bboxes = bbox_cxcywh_to_xyxy(bbox_preds) * factors
         bboxes_gt = bbox_cxcywh_to_xyxy(bbox_targets) * factors
+        ## SAM bbox pos, neg pred and gt => 3 feat. map
+        # triplet loss
+        # https://pytorch.org/docs/stable/generated/torch.nn.TripletMarginLoss.html
+
         # regression IoU loss, defaultly GIoU loss
         loss_iou = self.loss_iou(
             bboxes, bboxes_gt, bbox_weights, avg_factor=num_total_pos)

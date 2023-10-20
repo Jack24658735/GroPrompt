@@ -414,7 +414,6 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
                                     max_logit, max_idx = torch.max(logits, dim=0)
                                     boxes = boxes[max_idx].unsqueeze(0) ## shape: (1, 4)
                                     # img_arr = np.asarray(img)
-                                    import ipdb; ipdb.set_trace()
                                     sam_predictor.set_image(img)
                                     # # box: normalized box xywh -> unnormalized xyxy
                                     # H, W, _ = img.shape
