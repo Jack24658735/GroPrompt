@@ -25,7 +25,7 @@ custom_hooks = [
 # ]
 
 model = dict(
-    type='GroundingDINO',
+    type='GroundingDINOFrameLoss',
     backbone=dict(
         pretrain_img_size=384,
         embed_dims=128,
@@ -47,7 +47,7 @@ model = dict(
             ])),
     test_cfg=dict(max_per_img=300),
     bbox_head=dict(
-        type='GroundingDINOHead',
+        type='GroundingDINOFrameContrastiveHead',
         num_classes=65,
         sync_cls_avg_factor=True,
         contrastive_cfg=dict(max_text_len=256, log_scale=0.0, bias=False),
@@ -59,6 +59,7 @@ model = dict(
             loss_weight=0.0),  # 2.0 in DeformDETR
         loss_bbox=dict(type='L1Loss', loss_weight=5.0),
         loss_iou=dict(type='GIoULoss', loss_weight=2.0)),
+        sam_ckpt_path='/home/liujack/RVOS/Grounded-Segment-Anything/sam_hq_vit_h.pth',
 )
 
 
