@@ -114,7 +114,7 @@ class GroundingDINOFrameContrastiveHead(DINOHead):
         sam.cuda()
         self.prompt_encoder = sam.prompt_encoder
 
-        self.triplet_loss = nn.triplet_margin_loss(margin=0.0)
+        self.triplet_loss = nn.TripletMarginLoss(margin=0.0)
 
     def _init_layers(self) -> None:
         """Initialize classification branch and regression branch of head."""
@@ -503,8 +503,27 @@ class GroundingDINOFrameContrastiveHead(DINOHead):
         losses = self.loss_by_feat(*loss_inputs)
         return losses
     
-    ### NOTE: loss_by_feat, we will override it (originally it is in dino_head)
-    def loss_by_feat(
+    def get_bbox(self, hidden_states: Tensor, references: List[Tensor],
+             memory_text: Tensor, text_token_mask: Tensor,
+             enc_outputs_class: Tensor, enc_outputs_coord: Tensor,
+             batch_data_samples: SampleList, dn_meta: Dict[str, int]) -> dict:
+        batch_gt_instances = []
+        batch_img_metas = []
+        for data_sample in batch_data_samples:
+            batch_img_metas.append(data_sample.metainfo)
+            batch_gt_instances.append(data_sample.gt_instances)
+
+        outs = self(hidden_states, references, memory_text, text_token_mask)
+        self.text_masks = text_token_mask
+        loss_inputs = outs + (enc_outputs_class, enc_outputs_coord,
+                              batch_gt_instances, batch_img_metas, dn_meta)
+        # this is only for the contrastive loss
+        bboxes, bboxes_gt = self.bbox_by_feat(*loss_inputs)
+
+        return bboxes, bboxes_gt
+
+
+    def bbox_by_feat(
         self,
         all_layers_cls_scores: Tensor,
         all_layers_bbox_preds: Tensor,
@@ -515,88 +534,58 @@ class GroundingDINOFrameContrastiveHead(DINOHead):
         dn_meta: Dict[str, int],
         batch_gt_instances_ignore: OptInstanceList = None
     ) -> Dict[str, Tensor]:
-        """Loss function.
-
-        Args:
-            all_layers_cls_scores (Tensor): Classification scores of all
-                decoder layers, has shape (num_decoder_layers, bs,
-                num_queries_total, cls_out_channels), where
-                `num_queries_total` is the sum of `num_denoising_queries`
-                and `num_matching_queries`.
-            all_layers_bbox_preds (Tensor): Regression outputs of all decoder
-                layers. Each is a 4D-tensor with normalized coordinate format
-                (cx, cy, w, h) and has shape (num_decoder_layers, bs,
-                num_queries_total, 4).
-            enc_cls_scores (Tensor): The score of each point on encode
-                feature map, has shape (bs, num_feat_points, cls_out_channels).
-            enc_bbox_preds (Tensor): The proposal generate from the encode
-                feature map, has shape (bs, num_feat_points, 4) with the last
-                dimension arranged as (cx, cy, w, h).
-            batch_gt_instances (list[:obj:`InstanceData`]): Batch of
-                gt_instance. It usually includes ``bboxes`` and ``labels``
-                attributes.
-            batch_img_metas (list[dict]): Meta information of each image, e.g.,
-                image size, scaling factor, etc.
-            dn_meta (Dict[str, int]): The dictionary saves information about
-                group collation, including 'num_denoising_queries' and
-                'num_denoising_groups'. It will be used for split outputs of
-                denoising and matching parts and loss calculation.
-            batch_gt_instances_ignore (list[:obj:`InstanceData`], optional):
-                Batch of gt_instances_ignore. It includes ``bboxes`` attribute
-                data that is ignored during training and testing.
-                Defaults to None.
-
-        Returns:
-            dict[str, Tensor]: A dictionary of loss components.
-        """
-        # extract denoising and matching part of outputs
-        (all_layers_matching_cls_scores, all_layers_matching_bbox_preds,
-         all_layers_denoising_cls_scores, all_layers_denoising_bbox_preds) = \
-            self.split_outputs(
-                all_layers_cls_scores, all_layers_bbox_preds, dn_meta)
-
-        loss_dict = super(DeformableDETRHead, self).loss_by_feat(
-            all_layers_matching_cls_scores, all_layers_matching_bbox_preds,
-            batch_gt_instances, batch_img_metas, batch_gt_instances_ignore)
-        # NOTE DETRHead.loss_by_feat but not DeformableDETRHead.loss_by_feat
-        # is called, because the encoder loss calculations are different
-        # between DINO and DeformableDETR.
-
         # loss of proposal generated from encode feature map.
         if enc_cls_scores is not None:
             # NOTE The enc_loss calculation of the DINO is
             # different from that of Deformable DETR.
-            enc_loss_cls, enc_losses_bbox, enc_losses_iou = \
-                self.loss_by_feat_single(
+            bboxes, bboxes_gt = self.bbox_by_feat_single(
                     enc_cls_scores, enc_bbox_preds,
                     batch_gt_instances=batch_gt_instances,
                     batch_img_metas=batch_img_metas)
-            loss_dict['enc_loss_cls'] = enc_loss_cls
-            loss_dict['enc_loss_bbox'] = enc_losses_bbox
-            loss_dict['enc_loss_iou'] = enc_losses_iou
 
-        if all_layers_denoising_cls_scores is not None:
-            # calculate denoising loss from all decoder layers
-            dn_losses_cls, dn_losses_bbox, dn_losses_iou = self.loss_dn(
-                all_layers_denoising_cls_scores,
-                all_layers_denoising_bbox_preds,
-                batch_gt_instances=batch_gt_instances,
-                batch_img_metas=batch_img_metas,
-                dn_meta=dn_meta)
-            # collate denoising loss
-            loss_dict['dn_loss_cls'] = dn_losses_cls[-1]
-            loss_dict['dn_loss_bbox'] = dn_losses_bbox[-1]
-            loss_dict['dn_loss_iou'] = dn_losses_iou[-1]
-            for num_dec_layer, (loss_cls_i, loss_bbox_i, loss_iou_i) in \
-                    enumerate(zip(dn_losses_cls[:-1], dn_losses_bbox[:-1],
-                                  dn_losses_iou[:-1])):
-                loss_dict[f'd{num_dec_layer}.dn_loss_cls'] = loss_cls_i
-                loss_dict[f'd{num_dec_layer}.dn_loss_bbox'] = loss_bbox_i
-                loss_dict[f'd{num_dec_layer}.dn_loss_iou'] = loss_iou_i
+        return bboxes, bboxes_gt
+    
+    def bbox_by_feat_single(self, cls_scores: Tensor, bbox_preds: Tensor,
+                            batch_gt_instances: InstanceList,
+                            batch_img_metas: List[dict]) -> Tuple[Tensor]:
+        num_imgs = cls_scores.size(0)
+        cls_scores_list = [cls_scores[i] for i in range(num_imgs)]
+        bbox_preds_list = [bbox_preds[i] for i in range(num_imgs)]
+        with torch.no_grad():
+            cls_reg_targets = self.get_targets(cls_scores_list,
+                                               bbox_preds_list,
+                                               batch_gt_instances,
+                                               batch_img_metas)
+        (labels_list, label_weights_list, bbox_targets_list, bbox_weights_list,
+         num_total_pos, num_total_neg) = cls_reg_targets
+        # bbox_targets_list : (num_frames, 900, 4)
+        # bbox_weights_list : (num_frames, 900, 4)
+        bbox_targets = torch.cat(bbox_targets_list, 0)
+        bbox_weights = torch.cat(bbox_weights_list, 0)
 
-        ## TODO: add our contrastive loss
+        pattern = torch.tensor([1,1,1,1]).cuda()
+        indices = torch.nonzero(torch.all(bbox_weights == pattern, dim=1)).squeeze()
+       
+        
+        # construct factors used for rescale bboxes
+        factors = []
+        for img_meta, bbox_pred in zip(batch_img_metas, bbox_preds):
+            img_h, img_w, = img_meta['img_shape']
+            factor = bbox_pred.new_tensor([img_w, img_h, img_w,
+                                           img_h]).unsqueeze(0).repeat(
+                                               bbox_pred.size(0), 1)
+            factors.append(factor)
+        factors = torch.cat(factors, 0)
 
-        return loss_dict
+        bbox_preds = bbox_preds.reshape(-1, 4)
+        bboxes = bbox_cxcywh_to_xyxy(bbox_preds) * factors
+        bboxes_gt = bbox_cxcywh_to_xyxy(bbox_targets) * factors
+
+        # select only the valid samples
+        bboxes = bboxes[indices]
+        bboxes_gt = bboxes_gt[indices]
+
+        return bboxes, bboxes_gt
     
     def loss_contrastive(self, boxes_pos, boxes_neg, boxes_gt):
         pos_sparse_embeddings, pos_dense_embeddings = self.prompt_encoder(points=None,boxes=boxes_pos,masks=None)

@@ -137,6 +137,17 @@ class YTVOSDataset(Dataset):
             vid_data = subset_expressions_by_video[vid]
             vid_frames = sorted(vid_data['frames'])
             vid_len = len(vid_frames)
+            # prepare for neg text
+            vid_dict_for_neg = {}
+            for key, value in vid_data['expressions'].items():
+                obj_id = value['obj_id']
+                exp = value['exp']
+                
+                if obj_id not in vid_dict_for_neg:
+                    vid_dict_for_neg[obj_id] = []
+                
+                vid_dict_for_neg[obj_id].append(exp)
+
             for exp_id, exp_dict in vid_data['expressions'].items():
                 for frame_id in range(0, vid_len, self.num_frames):
                     meta = {}
@@ -145,6 +156,12 @@ class YTVOSDataset(Dataset):
                     meta['obj_id'] = int(exp_dict['obj_id'])
                     meta['frames'] = vid_frames
                     meta['frame_id'] = frame_id
+                    # DONE: add neg. text for contrastive loss
+                    meta['neg_exp'] = []
+                    for k, v in vid_dict_for_neg.items():
+                        if k != exp_dict['obj_id']:
+                            meta['neg_exp'].extend(v)
+                    meta['exp_for_debug'] = vid_data['expressions']
                     # get object category
                     obj_id = exp_dict['obj_id']
                     meta['category'] = vid_meta['objects'][obj_id]['category']
@@ -184,10 +201,20 @@ class YTVOSDataset(Dataset):
 
             video, exp, obj_id, category, frames, frame_id = \
                 meta['video'], meta['exp'], meta['obj_id'], meta['category'], meta['frames'], meta['frame_id']
+           
             # clean up the caption
             exp = " ".join(exp.lower().split())
             category_id = ytvos_category_dict[category]
             vid_len = len(frames)
+
+            # TODO: obtain neg. text for contrastive loss
+            all_exp_for_obj = meta['neg_exp']
+            if len(all_exp_for_obj) > 0:
+                neg_exp = random.choice(all_exp_for_obj)
+            else:
+                neg_exp = ''
+            # clean up the caption (neg.)
+            neg_exp = " ".join(neg_exp.lower().split())
 
             num_frames = self.num_frames * self.num_clips
             # random sparse sample
@@ -260,6 +287,7 @@ class YTVOSDataset(Dataset):
                 'caption': exp,
                 'orig_size': torch.as_tensor([int(height), int(width)]),
                 'size': torch.as_tensor([int(height), int(width)]),
+                'neg_caption': neg_exp
             }
 
             # "boxes" normalize to [0, 1] and transform from xyxy to cxcywh in self._transform
@@ -271,7 +299,6 @@ class YTVOSDataset(Dataset):
             #     boxes = boxes / torch.tensor([width, height, width, height], dtype=torch.float32)
             #     target["boxes"] = boxes
             imgs = torch.stack(imgs, dim=0)  # [T, 3, H, W]
-
             # FIXME: handle "valid", since some box may be removed due to random crop
             if torch.any(target['valid'] == 1):  # at leatst one instance
                 instance_check = True

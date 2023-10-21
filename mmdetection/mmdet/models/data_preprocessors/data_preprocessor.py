@@ -150,6 +150,8 @@ class DetDataPreprocessor(ImgDataPreprocessor):
                 gt_instances.labels = torch.tensor([0]).cuda() # NOTE: binary class
                 new_data_samples.gt_instances = gt_instances
                 new_data_samples.text = [caption for caption in data_samples['caption']][0]
+                # DONE: Add neg_text for contrastive loss
+                new_data_samples.neg_text = [caption for caption in data_samples['neg_caption']][0]
                 new_data_samples_list.append(new_data_samples)
             return {'inputs': inputs, 'data_samples': new_data_samples_list}
         else:

@@ -179,7 +179,6 @@ class GroundingDINOFrameLoss(DINO):
 
         encoder_outputs_dict = self.forward_encoder(
             **encoder_inputs_dict, text_dict=text_neg_dict)
-
         tmp_dec_in, head_inputs_dict = self.pre_decoder_neg(
             **encoder_outputs_dict, batch_data_samples=batch_data_samples)
         decoder_inputs_dict.update(tmp_dec_in)
@@ -612,6 +611,9 @@ class GroundingDINOFrameLoss(DINO):
             data_samples.text for data_samples in batch_data_samples
         ]
 
+        # TODO: add neg text prompt
+        text_neg_prompts = [data_samples.neg_text for data_samples in batch_data_samples]
+
         gt_labels = [
             data_samples.gt_instances.labels
             for data_samples in batch_data_samples
@@ -657,21 +659,67 @@ class GroundingDINOFrameLoss(DINO):
             data_samples.gt_instances.text_token_mask = \
                 text_token_mask.unsqueeze(0).repeat(
                     len(positive_map), 1)
-            
-        ## TODO: build up negative texts
+        #### --- for neg text --- ###
+        neg_new_text_prompts = []
+        neg_positive_maps = []
+        ## TODO: build up negative texts 
+        # Valid flag to decide use contrastive loss or not
+        NEG_VALID = None
+        # (NOTE: we have to check with all(), because the only 1 obj case will be all empty str.)
+        if all(text_neg_prompts):
+            NEG_VALID = True
+            if len(set(text_neg_prompts)) == 1:
+                # All the text prompts are the same,
+                # so there is no need to calculate them multiple times.
+                tokenized, caption_string, tokens_positive, _ = \
+                    self.get_tokens_and_prompts(
+                        text_neg_prompts[0], True)
+                neg_new_text_prompts = [caption_string] * len(batch_inputs)
+                for gt_label in gt_labels:
+                    new_tokens_positive = [
+                        tokens_positive[label] for label in gt_label
+                    ]
+                    _, positive_map = self.get_positive_map(
+                        tokenized, new_tokens_positive)
+                    neg_positive_maps.append(positive_map)
+            else:
+                for text_prompt, gt_label in zip(text_neg_prompts, gt_labels):
+                    tokenized, caption_string, tokens_positive, _ = \
+                        self.get_tokens_and_prompts(
+                            text_neg_prompts, True)
+                    new_tokens_positive = [
+                        tokens_positive[label] for label in gt_label
+                    ]
+                    _, positive_map = self.get_positive_map(
+                        tokenized, new_tokens_positive)
+                    neg_positive_maps.append(positive_map)
+                    neg_new_text_prompts.append(caption_string)
+            text_neg_dict = self.language_model(neg_new_text_prompts)
+            if self.text_feat_map is not None:
+                text_neg_dict['embedded'] = self.text_feat_map(text_neg_dict['embedded'])
+        else:
+            NEG_VALID = False
+            text_neg_dict = text_dict
+
+        # pos. text for loop is to build up positive_maps and text_token_mask
+        # which is no need for neg. text
+        #### --- for neg text --- ###
 
 
         visual_features = self.extract_feat(batch_inputs)
         head_inputs_dict = self.forward_transformer(visual_features, text_dict,
                                                     batch_data_samples)
-        neg_head_inputs_dict = self.forward_transformer_neg(visual_features, text_neg_dict, batch_data_samples)
-        
         losses = self.bbox_head.loss(
             **head_inputs_dict, batch_data_samples=batch_data_samples)
         
-        # TODO: update it to losses dict
-        # contrastive_loss = self.bbox_head.loss_contrastive()
-        
+        # check if it is valid
+        if NEG_VALID:
+            neg_head_inputs_dict = self.forward_transformer_neg(visual_features, text_neg_dict, batch_data_samples)
+            bbox_pos, bbox_gt = self.bbox_head.get_bbox(**head_inputs_dict, batch_data_samples=batch_data_samples)
+            bbox_neg, _ = self.bbox_head.get_bbox(**neg_head_inputs_dict, batch_data_samples=batch_data_samples)
+            # TODO: update it to losses dict
+            contrastive_loss = self.bbox_head.loss_contrastive(bbox_pos, bbox_neg, bbox_gt)
+            losses['loss_frame_contrastive'] = contrastive_loss
         return losses
 
     def predict(self, batch_inputs, batch_data_samples, rescale: bool = True):
