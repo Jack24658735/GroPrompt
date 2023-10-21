@@ -24,6 +24,7 @@ from segment_anything.utils.transforms import ResizeLongestSide
 
 import mmcv
 
+from models.postprocessors import build_postprocessors
 
 def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
                     data_loader: Iterable, optimizer: torch.optim.Optimizer,
@@ -458,8 +459,9 @@ def evaluate_a2d_g_sam(sam_predictor, inferencer, data_loader, device, args):
     predictions = []
     metric_logger = utils.MetricLogger(delimiter="  ")
     header = 'Test:'
-
-    for samples, targets in metric_logger.log_every(data_loader, 10, header):
+    cnt = 0
+    postprocessors = build_postprocessors(args, args.dataset_file)
+    for samples, targets in metric_logger.log_every(data_loader, 100, header):
         
         image_ids = [t['image_id'] for t in targets]
 
@@ -483,7 +485,6 @@ def evaluate_a2d_g_sam(sam_predictor, inferencer, data_loader, device, args):
         else:
             max_logit, max_idx = torch.max(logits, dim=0)
             boxes = boxes[max_idx].unsqueeze(0) ## shape: (1, 4)
-            import ipdb; ipdb.set_trace()
 
             sam_predictor.set_image(img_input)
             boxes_xyxy = boxes
@@ -503,22 +504,24 @@ def evaluate_a2d_g_sam(sam_predictor, inferencer, data_loader, device, args):
             # pred_boxes.append(boxes_xyxy)
             # pred_logits.append(max_logit.unsqueeze(0))
         # outputs = model(samples, captions, targets)
-
-        # orig_target_sizes = torch.stack([t["orig_size"] for t in targets], dim=0)
-        # target_sizes = torch.stack([t["size"] for t in targets], dim=0)
+        orig_target_sizes = torch.stack([t["orig_size"] for t in targets], dim=0)
+        target_sizes = torch.stack([t["size"] for t in targets], dim=0)
+        pred = postprocessors(masks, orig_target_sizes, target_sizes)
         # processed_outputs = postprocessor(outputs, orig_target_sizes, target_sizes)
 
         # get the best-matched segmentation
         # max_idx = processed_outputs[0]['scores'].max(-1)[1]
-        predictions.append({ 'image_id': image_ids[0], 'category_id': 1, 'segmentation': masks,
-                             'score': max_logit})
-
+        for val in pred:
+            for m in val['rle_masks']:
+                predictions.append({'image_id': image_ids[0], 'category_id': 1, 'segmentation': m,
+                                    'score': max_logit})
         # for p, image_id in zip(processed_outputs, image_ids):
         #     for s, m in zip(p['scores'], p['rle_masks']):
         #             predictions.append({'image_id': image_id,
         #                                 'category_id': 1,  # dummy label, as categories are not predicted in ref-vos
         #                                 'segmentation': m,
         #                                 'score': s.item()})
+        break
     
     # gather and merge predictions from all gpus
     gathered_pred_lists = utils.all_gather(predictions)
@@ -548,7 +551,7 @@ def evaluate_a2d_g_sam(sam_predictor, inferencer, data_loader, device, args):
         print(eval_metrics)
 
     # sync all processes before starting a new epoch or exiting
-    dist.barrier()
+    # dist.barrier()
     return eval_metrics
 
 

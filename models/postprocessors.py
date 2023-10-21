@@ -19,25 +19,44 @@ class A2DSentencesPostProcess(nn.Module):
         super().__init__()
         self.threshold = threshold
 
+    # @torch.no_grad()
+    # def forward(self, outputs, orig_target_sizes, max_target_sizes):
+    #     """ Perform the computation
+    #     Parameters:
+    #         outputs: raw outputs of the model
+    #         orig_target_sizes: original size of the samples (no augmentations or padding)
+    #         max_target_sizes: size of samples (input to model) after size augmentation.
+    #         NOTE: the max_padding_size is 4x out_masks.shape[-2:]
+    #     """
+    #     assert len(orig_target_sizes) == len(max_target_sizes)
+        
+    #     # there is only one valid frames, thus T=1
+    #     out_logits = outputs['pred_logits'][:, 0, :, 0]  # [B, T, N, 1] -> [B, N]
+    #     out_masks = outputs['pred_masks'][:, 0, :, :, :] # [B, T, N, out_h, out_w] -> [B, N, out_h, out_w]
+    #     out_h, out_w = out_masks.shape[-2:]
+
+    #     scores = out_logits.sigmoid()
+    #     pred_masks = F.interpolate(out_masks, size=(out_h*4, out_w*4), mode="bilinear", align_corners=False) # [B, N, H, W]
+    #     pred_masks = (pred_masks.sigmoid() > 0.5) # [B, N, H, W]
+    #     processed_pred_masks, rle_masks = [], []
+    #     # for each batch
+    #     for f_pred_masks, resized_size, orig_size in zip(pred_masks, max_target_sizes, orig_target_sizes):
+    #         f_mask_h, f_mask_w = resized_size  # resized shape without padding
+    #         f_pred_masks_no_pad = f_pred_masks[:, :f_mask_h, :f_mask_w].unsqueeze(1)  # remove the samples' padding
+    #         # resize the samples back to their original dataset (target) size for evaluation
+    #         f_pred_masks_processed = F.interpolate(f_pred_masks_no_pad.float(), size=tuple(orig_size.tolist()), mode="nearest")
+    #         f_pred_rle_masks = [mask_util.encode(np.array(mask[0, :, :, np.newaxis], dtype=np.uint8, order="F"))[0]
+    #                             for mask in f_pred_masks_processed.cpu()]
+    #         processed_pred_masks.append(f_pred_masks_processed)
+    #         rle_masks.append(f_pred_rle_masks)
+    #     predictions = [{'scores': s, 'masks': m, 'rle_masks': rle}
+    #                    for s, m, rle in zip(scores, processed_pred_masks, rle_masks)]
+    #     return predictions
+
     @torch.no_grad()
-    def forward(self, outputs, orig_target_sizes, max_target_sizes):
-        """ Perform the computation
-        Parameters:
-            outputs: raw outputs of the model
-            orig_target_sizes: original size of the samples (no augmentations or padding)
-            max_target_sizes: size of samples (input to model) after size augmentation.
-            NOTE: the max_padding_size is 4x out_masks.shape[-2:]
-        """
+    def forward(self, pred_masks, orig_target_sizes, max_target_sizes):
         assert len(orig_target_sizes) == len(max_target_sizes)
         
-        # there is only one valid frames, thus T=1
-        out_logits = outputs['pred_logits'][:, 0, :, 0]  # [B, T, N, 1] -> [B, N]
-        out_masks = outputs['pred_masks'][:, 0, :, :, :] # [B, T, N, out_h, out_w] -> [B, N, out_h, out_w]
-        out_h, out_w = out_masks.shape[-2:]
-
-        scores = out_logits.sigmoid()
-        pred_masks = F.interpolate(out_masks, size=(out_h*4, out_w*4), mode="bilinear", align_corners=False) # [B, N, H, W]
-        pred_masks = (pred_masks.sigmoid() > 0.5) # [B, N, H, W]
         processed_pred_masks, rle_masks = [], []
         # for each batch
         for f_pred_masks, resized_size, orig_size in zip(pred_masks, max_target_sizes, orig_target_sizes):
@@ -45,12 +64,13 @@ class A2DSentencesPostProcess(nn.Module):
             f_pred_masks_no_pad = f_pred_masks[:, :f_mask_h, :f_mask_w].unsqueeze(1)  # remove the samples' padding
             # resize the samples back to their original dataset (target) size for evaluation
             f_pred_masks_processed = F.interpolate(f_pred_masks_no_pad.float(), size=tuple(orig_size.tolist()), mode="nearest")
+            f_pred_masks_processed = f_pred_masks_processed.cpu().numpy().astype(np.uint8)
             f_pred_rle_masks = [mask_util.encode(np.array(mask[0, :, :, np.newaxis], dtype=np.uint8, order="F"))[0]
-                                for mask in f_pred_masks_processed.cpu()]
-            processed_pred_masks.append(f_pred_masks_processed)
+                                for mask in f_pred_masks_processed]
+            processed_pred_masks.append(f_pred_masks)
             rle_masks.append(f_pred_rle_masks)
-        predictions = [{'scores': s, 'masks': m, 'rle_masks': rle}
-                       for s, m, rle in zip(scores, processed_pred_masks, rle_masks)]
+        predictions = [{'masks': m, 'rle_masks': rle}
+                       for m, rle in zip(processed_pred_masks, rle_masks)]
         return predictions
 
 
