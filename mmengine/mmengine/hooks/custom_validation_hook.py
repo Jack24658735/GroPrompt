@@ -98,4 +98,5 @@ class CustomValidationHook(Hook):
             # TODO: save log outside at work_dir
             with open(os.path.join(runner.work_dir, 'our_log.txt'), 'a') as f:
                 f.write(str(log_stats))
+                f.write("\n")
             self.curr_epoch += 1
