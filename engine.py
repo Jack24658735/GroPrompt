@@ -521,7 +521,6 @@ def evaluate_a2d_g_sam(sam_predictor, inferencer, data_loader, device, args):
         #                                 'category_id': 1,  # dummy label, as categories are not predicted in ref-vos
         #                                 'segmentation': m,
         #                                 'score': s.item()})
-        break
     
     # gather and merge predictions from all gpus
     gathered_pred_lists = utils.all_gather(predictions)
