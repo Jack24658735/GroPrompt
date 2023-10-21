@@ -185,9 +185,8 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
 
         # load the model from mmdet
         # Specify the path to model config and checkpoint file
-        config_file = 'mmdetection/configs/grounding_dino/grounding_dino_swin-b_pretrain_mixeddata.py'
-        checkpoint_file = 'mm_weights/groundingdino_swinb_cogcoor_mmdet-55949c9c.pth'
-        
+        config_file = args.g_dino_config_path
+        checkpoint_file = args.g_dino_ckpt_path
         # Build the model from a config file and a checkpoint file
         # model = init_detector(config_file, checkpoint_file, device='cuda:0')
         inferencer = DetInferencer(model=config_file, weights=checkpoint_file, device='cuda:0', show_progress=False)
