@@ -27,6 +27,7 @@ from .glip import GLIP
 from .grid_rcnn import GridRCNN
 from .grounding_dino import GroundingDINO
 from .grounding_dino_prop import GroundingDINOProp
+from .grounding_dino_prop_offline import GroundingDINOPropOffline
 from .grounding_dino_frame_loss import GroundingDINOFrameLoss
 from .htc import HybridTaskCascade
 from .kd_one_stage import KnowledgeDistillationSingleStageDetector
@@ -73,5 +74,5 @@ __all__ = [
     'MaskFormer', 'DDOD', 'Mask2Former', 'SemiBaseDetector', 'SoftTeacher',
     'RTMDet', 'Detectron2Wrapper', 'CrowdDet', 'CondInst', 'BoxInst',
     'DetectionTransformer', 'ConditionalDETR', 'DINO', 'DABDETR', 'GLIP',
-    'DDQDETR', 'GroundingDINO', 'GroundingDINOProp', 'GroundingDINOFrameLoss'
+    'DDQDETR', 'GroundingDINO', 'GroundingDINOProp', 'GroundingDINOFrameLoss', 'GroundingDINOPropOffline'
 ]
