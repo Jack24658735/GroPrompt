@@ -16,6 +16,7 @@ from PIL import Image
 import json
 import numpy as np
 import random
+import mmcv
 
 import scipy.io
 
@@ -86,7 +87,8 @@ class JHMDBSentencesDataset(Dataset):
             p = '/'.join(chosen_frame_path.split('./jhmdb_sentences')[1].split('/')[:-1]) + f'/{i:05d}.png'
             # frame_path = os.path.join(self.dataset_path, p)
             frame_path = self.dataset_path + p
-            imgs.append(Image.open(frame_path).convert('RGB'))
+            # imgs.append(Image.open(frame_path).convert('RGB'))
+            imgs.append(torch.tensor(mmcv.imread(frame_path)).permute(2, 0, 1))
 
         # read the instance masks:
         # video_masks_path = os.path.join(self.dataset_path, video_masks_path)
@@ -126,7 +128,7 @@ class JHMDBSentencesDataset(Dataset):
         }
 
         # "boxes" normalize to [0, 1] and transform from xyxy to cxcywh in self._transform
-        imgs, target = self._transforms(imgs, target) 
+        # imgs, target = self._transforms(imgs, target) 
         imgs = torch.stack(imgs, dim=0) # [T, 3, H, W]
         
         # in 'val', valid always satisfies

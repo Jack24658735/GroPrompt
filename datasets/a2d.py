@@ -19,7 +19,7 @@ import random
 
 import h5py
 from pycocotools.mask import encode, area
-import mmcv
+import cv2
 
 
 def get_image_id(video_id, frame_idx, ref_instance_a2d_id):
@@ -130,9 +130,13 @@ class A2DSentencesDataset(Dataset):
             imgs, labels, boxes, masks, valid = [], [], [], [], []
             for j in range(self.num_frames):
                 frame_indx = sample_indx[j]
-                img = video_frames[frame_indx].permute(2, 0, 1)
+                ## TODO: test rgb bgr because we dont use mmcv here
+                img = cv2.cvtColor(video_frames[frame_indx].cpu().numpy(), cv2.COLOR_RGB2BGR)
+                img = torch.tensor(img).permute(2,0,1)
+                # img = video_frames[frame_indx].permute(2, 0, 1)
                 # img = F.to_pil_image(video_frames[frame_indx].permute(2, 0, 1))
                 imgs.append(img)
+            
             # read the instance mask
             frame_annot_path = os.path.join(self.mask_annotations_dir, video_id, f'{frame_idx:05d}.h5')
             f = h5py.File(frame_annot_path)

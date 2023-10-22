@@ -485,7 +485,6 @@ def evaluate_a2d_g_sam(sam_predictor, inferencer, data_loader, device, args):
         else:
             max_logit, max_idx = torch.max(logits, dim=0)
             boxes = boxes[max_idx].unsqueeze(0) ## shape: (1, 4)
-
             sam_predictor.set_image(img_input)
             boxes_xyxy = boxes
         
