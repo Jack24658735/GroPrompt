@@ -27,11 +27,12 @@ class GroundingDINOFrameLoss(DINO):
     <https://github.com/IDEA-Research/GroundingDINO>`_.
     """
 
-    def __init__(self, language_model, sam_ckpt_path=None, *args, **kwargs) -> None:
+    def __init__(self, language_model, sam_ckpt_path=None, loss_contrastive_weight=1.0, *args, **kwargs) -> None:
 
         self.language_model_cfg = language_model
         self._special_tokens = '. '
         self.sam_ckpt_path = sam_ckpt_path # for head use
+        self.loss_contrastive_weight = loss_contrastive_weight # for head use
         super().__init__(*args, **kwargs)
 
     def _init_layers(self) -> None:
@@ -719,7 +720,7 @@ class GroundingDINOFrameLoss(DINO):
             bbox_neg = self.bbox_head.get_bbox_neg(**neg_head_inputs_dict, batch_data_samples=batch_data_samples)
             # TODO: update it to losses dict
             contrastive_loss = self.bbox_head.loss_contrastive(bbox_pos, bbox_neg, bbox_gt)
-            losses['loss_frame_contrastive'] = contrastive_loss
+            losses['loss_frame_contrastive'] = self.loss_contrastive_weight * contrastive_loss
         return losses
 
     def predict(self, batch_inputs, batch_data_samples, rescale: bool = True):

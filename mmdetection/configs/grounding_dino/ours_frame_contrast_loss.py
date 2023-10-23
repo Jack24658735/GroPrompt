@@ -58,8 +58,9 @@ model = dict(
             alpha=0.25,
             loss_weight=0.0),  # 2.0 in DeformDETR
         loss_bbox=dict(type='L1Loss', loss_weight=5.0),
-        loss_iou=dict(type='GIoULoss', loss_weight=2.0)),
-        sam_ckpt_path='/home/liujack/RVOS/Grounded-Segment-Anything/sam_hq_vit_h.pth',
+        loss_iou=dict(type='GIoULoss', loss_weight=2.0),
+        sam_ckpt_path='/home/liujack/RVOS/Grounded-Segment-Anything/sam_hq_vit_h.pth',),
+        loss_contrastive_weight=1.0,
 )
 
 

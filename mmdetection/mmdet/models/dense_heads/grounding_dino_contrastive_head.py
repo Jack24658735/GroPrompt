@@ -654,9 +654,10 @@ class GroundingDINOFrameContrastiveHead(DINOHead):
         return bboxes
     
     def loss_contrastive(self, boxes_pos, boxes_neg, boxes_gt):
-        pos_sparse_embeddings, pos_dense_embeddings = self.prompt_encoder(points=None,boxes=boxes_pos,masks=None)
-        neg_sparse_embeddings, neg_dense_embeddings = self.prompt_encoder(points=None,boxes=boxes_neg,masks=None)
-        gt_sparse_embeddings, gt_dense_embeddings = self.prompt_encoder(points=None,boxes=boxes_gt,masks=None)
+        with torch.no_grad():
+            pos_sparse_embeddings, pos_dense_embeddings = self.prompt_encoder(points=None,boxes=boxes_pos,masks=None)
+            neg_sparse_embeddings, neg_dense_embeddings = self.prompt_encoder(points=None,boxes=boxes_neg,masks=None)
+            gt_sparse_embeddings, gt_dense_embeddings = self.prompt_encoder(points=None,boxes=boxes_gt,masks=None)
         ### DEF: triplet_loss(anchor, pos, neg)
         loss = self.triplet_loss(pos_sparse_embeddings, gt_sparse_embeddings, neg_sparse_embeddings)
         return loss
