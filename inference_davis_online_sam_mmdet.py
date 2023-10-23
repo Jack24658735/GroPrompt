@@ -398,7 +398,7 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
                         # so we can avoid the batch inference issues..
                         with torch.no_grad(): #### REMEMBER ADD THIS when infernce
                             if args.use_SAM:
-                                result = inferencer(img, texts=exp)
+                                result = inferencer(img, texts=exp, frame_idx=t)
                                 logits = torch.tensor(result['predictions'][0]['scores'])
                                 boxes = torch.tensor(result['predictions'][0]['bboxes'])
                                 # Note!!! handle special cases for "india"

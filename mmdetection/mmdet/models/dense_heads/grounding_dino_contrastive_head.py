@@ -522,7 +522,6 @@ class GroundingDINOFrameContrastiveHead(DINOHead):
 
         return bboxes, bboxes_gt
 
-
     def bbox_by_feat(
         self,
         all_layers_cls_scores: Tensor,
@@ -586,6 +585,73 @@ class GroundingDINOFrameContrastiveHead(DINOHead):
         bboxes_gt = bboxes_gt[indices]
 
         return bboxes, bboxes_gt
+    
+    def get_bbox_neg(self, hidden_states: Tensor, references: List[Tensor],
+             memory_text: Tensor, text_token_mask: Tensor,
+             enc_outputs_class: Tensor, enc_outputs_coord: Tensor,
+             batch_data_samples: SampleList, dn_meta: Dict[str, int]) -> dict:
+        batch_gt_instances = []
+        batch_img_metas = []
+        for data_sample in batch_data_samples:
+            batch_img_metas.append(data_sample.metainfo)
+            batch_gt_instances.append(data_sample.gt_instances)
+
+        outs = self(hidden_states, references, memory_text, text_token_mask)
+        self.text_masks = text_token_mask
+        loss_inputs = outs + (enc_outputs_class, enc_outputs_coord,
+                              batch_gt_instances, batch_img_metas, dn_meta)
+        # NEG bbox: this is only for the contrastive loss
+        bboxes_neg = self.bbox_by_feat_neg(*loss_inputs)
+
+        return bboxes_neg
+
+    def bbox_by_feat_neg(
+        self,
+        all_layers_cls_scores: Tensor,
+        all_layers_bbox_preds: Tensor,
+        enc_cls_scores: Tensor,
+        enc_bbox_preds: Tensor,
+        batch_gt_instances: InstanceList,
+        batch_img_metas: List[dict],
+        dn_meta: Dict[str, int],
+        batch_gt_instances_ignore: OptInstanceList = None
+    ) -> Dict[str, Tensor]:
+        # loss of proposal generated from encode feature map.
+        if enc_cls_scores is not None:
+            # NOTE The enc_loss calculation of the DINO is
+            # different from that of Deformable DETR.
+            bboxes = self.bbox_by_feat_single_neg(
+                    enc_cls_scores, enc_bbox_preds,
+                    batch_gt_instances=batch_gt_instances,
+                    batch_img_metas=batch_img_metas)
+
+        return bboxes
+    
+    def bbox_by_feat_single_neg(self, cls_scores: Tensor, bbox_preds: Tensor,
+                            batch_gt_instances: InstanceList,
+                            batch_img_metas: List[dict]) -> Tuple[Tensor]:
+        num_imgs = cls_scores.size(0)
+        cls_scores_list = [cls_scores[i] for i in range(num_imgs)]
+        bbox_preds_list = [bbox_preds[i] for i in range(num_imgs)]
+        indices = [torch.argmax(cls_scores_list[i].mean(dim=1, keepdim=True)) for i in range(len(cls_scores_list))]
+        indices = torch.stack(indices).unsqueeze(-1)
+        # select only the valid samples
+        bbox_preds = bbox_preds[torch.arange(len(cls_scores_list), device='cuda:0')[:, None], indices]
+        
+        # construct factors used for rescale bboxes
+        factors = []
+        for img_meta, bbox_pred in zip(batch_img_metas, bbox_preds):
+            img_h, img_w, = img_meta['img_shape']
+            factor = bbox_pred.new_tensor([img_w, img_h, img_w,
+                                           img_h]).unsqueeze(0).repeat(
+                                               bbox_pred.size(0), 1)
+            factors.append(factor)
+        factors = torch.cat(factors, 0)
+
+        bbox_preds = bbox_preds.reshape(-1, 4)
+        bboxes = bbox_cxcywh_to_xyxy(bbox_preds) * factors
+
+        return bboxes
     
     def loss_contrastive(self, boxes_pos, boxes_neg, boxes_gt):
         pos_sparse_embeddings, pos_dense_embeddings = self.prompt_encoder(points=None,boxes=boxes_pos,masks=None)
