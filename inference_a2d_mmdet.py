@@ -44,7 +44,7 @@ from mmdet.apis import DetInferencer
 def main(args):
     args.masks = True
 
-    utils.init_distributed_mode(args)
+    # utils.init_distributed_mode(args)
     print("git:\n  {}\n".format(utils.get_sha()))
     print(args)
     
