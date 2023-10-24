@@ -485,7 +485,7 @@ def evaluate_a2d_g_sam(sam_predictor, inferencer, data_loader, device, args):
         else:
             max_logit, max_idx = torch.max(logits, dim=0)
             boxes = boxes[max_idx].unsqueeze(0) ## shape: (1, 4)
-            sam_predictor.set_image(img_input)
+            sam_predictor.set_image(img_input, image_format='BGR')
             boxes_xyxy = boxes
         
             transformed_boxes = sam_predictor.transform.apply_boxes_torch(boxes_xyxy, img_input.shape[:2]).to(device)
@@ -521,6 +521,105 @@ def evaluate_a2d_g_sam(sam_predictor, inferencer, data_loader, device, args):
         #                                 'segmentation': m,
         #                                 'score': s.item()})
     
+    # gather and merge predictions from all gpus
+    gathered_pred_lists = utils.all_gather(predictions)
+    predictions = [p for p_list in gathered_pred_lists for p in p_list]
+    # evaluation
+    eval_metrics = {}
+    if utils.is_main_process():
+        if args.dataset_file == 'a2d':
+            coco_gt = COCO(os.path.join(args.a2d_path, 'a2d_sentences_test_annotations_in_coco_format.json'))
+        elif args.dataset_file == 'jhmdb':
+            coco_gt = COCO(os.path.join(args.jhmdb_path, 'jhmdb_sentences_gt_annotations_in_coco_format.json'))
+        else:
+            raise NotImplementedError
+        coco_pred = coco_gt.loadRes(predictions)
+        coco_eval = COCOeval(coco_gt, coco_pred, iouType='segm')
+        coco_eval.params.useCats = 0  # ignore categories as they are not predicted in ref-vos task
+        coco_eval.evaluate()
+        coco_eval.accumulate()
+        coco_eval.summarize()
+        ap_labels = ['mAP 0.5:0.95', 'AP 0.5', 'AP 0.75', 'AP 0.5:0.95 S', 'AP 0.5:0.95 M', 'AP 0.5:0.95 L']
+        ap_metrics = coco_eval.stats[:6]
+        eval_metrics = {l: m for l, m in zip(ap_labels, ap_metrics)}
+        # Precision and IOU
+        precision_at_k, overall_iou, mean_iou = calculate_precision_at_k_and_iou_metrics(coco_gt, coco_pred)
+        eval_metrics.update({f'P@{k}': m for k, m in zip([0.5, 0.6, 0.7, 0.8, 0.9], precision_at_k)})
+        eval_metrics.update({'overall_iou': overall_iou, 'mean_iou': mean_iou})
+        print(eval_metrics)
+
+    # sync all processes before starting a new epoch or exiting
+    # dist.barrier()
+    return eval_metrics
+
+
+@torch.no_grad()
+def evaluate_a2d_g_sam_gtbbox(sam_predictor, data_loader, device, args):
+    predictions = []
+    metric_logger = utils.MetricLogger(delimiter="  ")
+    header = 'Test:'
+    cnt = 0
+    postprocessors = build_postprocessors(args, args.dataset_file)
+    for samples, targets in metric_logger.log_every(data_loader, 100, header):
+        
+        image_ids = [t['image_id'] for t in targets]
+
+        samples = samples.to(device)
+        captions = [t["caption"] for t in targets]
+        targets = utils.targets_to(targets, device)
+        img_input = samples.tensors.cpu().numpy().squeeze().transpose(1,2,0)
+
+        # (h, w, 3)
+        boxes = targets[0]['boxes']
+        # Note!!! handle special cases for "india"
+        if len(boxes) == 0:
+            boxes_xyxy = torch.zeros((1, 4))
+            ### DONE:
+            # if this situation, no need SAM! (just all zeros)
+            masks = torch.zeros(masks.shape).to(device)
+            # pred_masks.append(masks)
+            # pred_boxes.append(boxes_xyxy)
+            # pred_logits.append(torch.zeros((1,)))
+        else:
+            sam_predictor.set_image(img_input, image_format='BGR')
+
+            boxes_xyxy = boxes
+        
+            transformed_boxes = sam_predictor.transform.apply_boxes_torch(boxes_xyxy, img_input.shape[:2]).to(device)
+            # print(transformed_boxes)
+            # print(transformed_boxes.shape)
+            masks, _, _ = sam_predictor.predict_torch(
+                        point_coords = None,
+                        point_labels = None,
+                        boxes = transformed_boxes,
+                        multimask_output = False,
+                    )
+            # print(f'{frame} {masks.shape}')
+            # print(f'obj: {obj_id}, t: {t}, box shape: {masks.shape}')
+            # pred_masks.append(masks)
+            # pred_boxes.append(boxes_xyxy)
+            # pred_logits.append(max_logit.unsqueeze(0))
+        # outputs = model(samples, captions, targets)
+        orig_target_sizes = torch.stack([t["orig_size"] for t in targets], dim=0)
+        target_sizes = torch.stack([t["size"] for t in targets], dim=0)
+        # !!!!
+        # masks = targets[0]['masks'].unsqueeze(0)
+        
+        pred = postprocessors(masks, orig_target_sizes, target_sizes)
+        # processed_outputs = postprocessor(outputs, orig_target_sizes, target_sizes)
+
+        # get the best-matched segmentation
+        # max_idx = processed_outputs[0]['scores'].max(-1)[1]
+        for val in pred:
+            for m in val['rle_masks']:
+                predictions.append({'image_id': image_ids[0], 'category_id': 1, 'segmentation': m,
+                                    'score': 0})
+        # for p, image_id in zip(processed_outputs, image_ids):
+        #     for s, m in zip(p['scores'], p['rle_masks']):
+        #             predictions.append({'image_id': image_id,
+        #                                 'category_id': 1,  # dummy label, as categories are not predicted in ref-vos
+        #                                 'segmentation': m,
+        #                                 'score': s.item()})
     # gather and merge predictions from all gpus
     gathered_pred_lists = utils.all_gather(predictions)
     predictions = [p for p_list in gathered_pred_lists for p in p_list]
