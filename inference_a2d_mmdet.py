@@ -45,6 +45,7 @@ def main(args):
     args.masks = True
 
     # utils.init_distributed_mode(args)
+    args.distributed = False
     print("git:\n  {}\n".format(utils.get_sha()))
     print(args)
     
