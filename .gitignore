@@ -4,3 +4,6 @@ outputs*
 *__pycache__*
 *.so
 *.egg-info
+output*
+ours_prop_p*
+CVPR*

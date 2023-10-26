@@ -49,7 +49,7 @@ class CustomValidationHookA2D(Hook):
                 # setup the model path for loading
                 '--g_dino_ckpt_path=' + f'{runner.work_dir}/epoch_{self.curr_epoch}.pth',
                 '--g_dino_config_path=' + f'{runner.work_dir}/{cfg_path}',
-                '--sam_ckpt_path=' + f'/home/liujack/RVOS/Grounded-Segment-Anything/sam_hq_vit_h.pth',
+                '--sam_ckpt_path=' + runner.cfg.sam_ckpt_path,
             ]
             # Run the command
             subprocess.run(cmd)
@@ -64,8 +64,8 @@ class CustomValidationHookA2D(Hook):
             mAP = eval_metric.get('mAP 0.5:0.95', None)
             
             
-            if overall_iou > self.best_score:
-                self.best_score = overall_iou
+            if mean_iou > self.best_score:
+                self.best_score = mean_iou
                 self.best_epoch = self.curr_epoch
             log_stats = { 
                         'overall_iou': overall_iou,

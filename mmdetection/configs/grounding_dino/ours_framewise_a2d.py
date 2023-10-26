@@ -24,6 +24,8 @@ custom_hooks = [
 #     dict(type='AddLoRAHook')
 # ]
 
+sam_ckpt_path = '/home/liujack/RVOS/Grounded-Segment-Anything/sam_hq_vit_h.pth'
+
 model = dict(
     type='GroundingDINO',
     backbone=dict(
@@ -190,8 +192,8 @@ optim_wrapper = dict(
 
 # learning policy
 max_epochs = 12
-# train_cfg=dict(type='EpochBasedTrainLoop', max_epochs=max_epochs, val_interval=1)
-train_cfg=dict(_delete_=True,type='IterBasedTrainLoop', max_iters=100, val_interval=1)
+train_cfg=dict(type='EpochBasedTrainLoop', max_epochs=max_epochs, val_interval=1)
+# train_cfg=dict(_delete_=True,type='IterBasedTrainLoop', max_iters=100, val_interval=1)
 
 # val_cfg = dict(type='ValLoop')
 # test_cfg=dict(max_per_img=300) # NOTE: ???
