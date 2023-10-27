@@ -719,7 +719,7 @@ class GroundingDINOFrameLoss(DINO):
             bbox_pos, bbox_gt = self.bbox_head.get_bbox(**head_inputs_dict, batch_data_samples=batch_data_samples)
             bbox_neg = self.bbox_head.get_bbox_neg(**neg_head_inputs_dict, batch_data_samples=batch_data_samples)
             # TODO: update it to losses dict
-            contrastive_loss = self.bbox_head.loss_contrastive(bbox_pos, bbox_neg, bbox_gt)
+            contrastive_loss = self.bbox_head.loss_contrastive(bbox_pos, bbox_neg, bbox_gt, batch_data_samples)
             losses['loss_frame_contrastive'] = self.loss_contrastive_weight * contrastive_loss
         return losses
 

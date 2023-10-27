@@ -112,7 +112,10 @@ class GroundingDINOFrameContrastiveHead(DINOHead):
         ## TODO: build up SAM
         sam = build_sam_hq(checkpoint=sam_ckpt_path, mask_threshold=0.0)
         sam.cuda()
-        self.prompt_encoder = sam.prompt_encoder
+        sam_predictor = SamPredictor(sam)
+        self.sam_predictor = sam_predictor
+        self.prompt_encoder = sam_predictor.model.prompt_encoder
+        self.target_length = sam_predictor.model.image_encoder.img_size
 
         self.triplet_loss = nn.TripletMarginLoss(margin=0.0)
 
@@ -653,7 +656,50 @@ class GroundingDINOFrameContrastiveHead(DINOHead):
 
         return bboxes
     
-    def loss_contrastive(self, boxes_pos, boxes_neg, boxes_gt):
+    # NOTE: test for confirm the shape issue
+    # These are the functions from SAM transform to avoid gradient issue...
+    # def apply_coords_torch(
+    #     self, coords: torch.Tensor, original_size: Tuple[int, ...]
+    # ) -> torch.Tensor:
+    #     """
+    #     Expects a torch tensor with length 2 in the last dimension. Requires the
+    #     original image size in (H, W) format.
+    #     """
+    #     old_h, old_w = original_size
+    #     new_h, new_w = self.get_preprocess_shape(
+    #         original_size[0], original_size[1], self.target_length
+    #     )
+    #     ### NOTE: workaround for the gradient issue
+    #     # coords = deepcopy(coords).to(torch.float)
+    #     coords[..., 0] = coords[..., 0] * (new_w / old_w)
+    #     coords[..., 1] = coords[..., 1] * (new_h / old_h)
+    #     return coords
+
+    # def apply_boxes_torch(
+    #     self, boxes: torch.Tensor, original_size: Tuple[int, ...]
+    # ) -> torch.Tensor:
+    #     """
+    #     Expects a torch tensor with shape Bx4. Requires the original image
+    #     size in (H, W) format.
+    #     """
+    #     boxes = self.apply_coords_torch(boxes.reshape(-1, 2, 2), original_size)
+    #     return boxes.reshape(-1, 4)
+    
+    # @staticmethod
+    # def get_preprocess_shape(oldh: int, oldw: int, long_side_length: int) -> Tuple[int, int]:
+    #     """
+    #     Compute the output size given input size and target long side length.
+    #     """
+    #     scale = long_side_length * 1.0 / max(oldh, oldw)
+    #     newh, neww = oldh * scale, oldw * scale
+    #     neww = int(neww + 0.5)
+    #     newh = int(newh + 0.5)
+    #     return (newh, neww)
+
+
+    def loss_contrastive(self, boxes_pos, boxes_neg, boxes_gt, batch_data_samples=None):
+        # trans = self.apply_boxes_torch(boxes_pos, batch_data_samples[0].img_shape).cuda()
+        ## XYXY, unnormalized
         with torch.no_grad():
             pos_sparse_embeddings, pos_dense_embeddings = self.prompt_encoder(points=None,boxes=boxes_pos,masks=None)
             neg_sparse_embeddings, neg_dense_embeddings = self.prompt_encoder(points=None,boxes=boxes_neg,masks=None)
