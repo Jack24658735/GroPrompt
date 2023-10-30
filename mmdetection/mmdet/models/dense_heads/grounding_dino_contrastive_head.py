@@ -537,13 +537,24 @@ class GroundingDINOFrameContrastiveHead(DINOHead):
         batch_gt_instances_ignore: OptInstanceList = None
     ) -> Dict[str, Tensor]:
         # loss of proposal generated from encode feature map.
-        if enc_cls_scores is not None:
-            # NOTE The enc_loss calculation of the DINO is
-            # different from that of Deformable DETR.
-            bboxes, bboxes_gt = self.bbox_by_feat_single(
-                    enc_cls_scores, enc_bbox_preds,
+        # TODO: split output of denoising and matching parts
+        # extract denoising and matching part of outputs
+        (all_layers_matching_cls_scores, all_layers_matching_bbox_preds,
+         all_layers_denoising_cls_scores, all_layers_denoising_bbox_preds) = \
+            self.split_outputs(
+                all_layers_cls_scores, all_layers_bbox_preds, dn_meta)
+
+        bboxes, bboxes_gt = self.bbox_by_feat_single(
+                    all_layers_matching_cls_scores[-1], all_layers_matching_bbox_preds[-1],
                     batch_gt_instances=batch_gt_instances,
                     batch_img_metas=batch_img_metas)
+        # if enc_cls_scores is not None:
+        #     # NOTE The enc_loss calculation of the DINO is
+        #     # different from that of Deformable DETR.
+        #     bboxes, bboxes_gt = self.bbox_by_feat_single(
+        #             enc_cls_scores, enc_bbox_preds,
+        #             batch_gt_instances=batch_gt_instances,
+        #             batch_img_metas=batch_img_metas)
 
         return bboxes, bboxes_gt
     
@@ -619,14 +630,26 @@ class GroundingDINOFrameContrastiveHead(DINOHead):
         dn_meta: Dict[str, int],
         batch_gt_instances_ignore: OptInstanceList = None
     ) -> Dict[str, Tensor]:
-        # loss of proposal generated from encode feature map.
-        if enc_cls_scores is not None:
-            # NOTE The enc_loss calculation of the DINO is
-            # different from that of Deformable DETR.
-            bboxes = self.bbox_by_feat_single_neg(
-                    enc_cls_scores, enc_bbox_preds,
+        # TODO: split output of denoising and matching parts
+        # extract denoising and matching part of outputs
+        (all_layers_matching_cls_scores, all_layers_matching_bbox_preds,
+         all_layers_denoising_cls_scores, all_layers_denoising_bbox_preds) = \
+            self.split_outputs(
+                all_layers_cls_scores, all_layers_bbox_preds, dn_meta)
+
+        bboxes = self.bbox_by_feat_single_neg(
+                    all_layers_matching_cls_scores[-1], all_layers_matching_bbox_preds[-1],
                     batch_gt_instances=batch_gt_instances,
                     batch_img_metas=batch_img_metas)
+        
+        # loss of proposal generated from encode feature map.
+        # if enc_cls_scores is not None:
+        #     # NOTE The enc_loss calculation of the DINO is
+        #     # different from that of Deformable DETR.
+        #     bboxes = self.bbox_by_feat_single_neg(
+        #             enc_cls_scores, enc_bbox_preds,
+        #             batch_gt_instances=batch_gt_instances,
+        #             batch_img_metas=batch_img_metas)
 
         return bboxes
     
@@ -635,12 +658,9 @@ class GroundingDINOFrameContrastiveHead(DINOHead):
                             batch_img_metas: List[dict]) -> Tuple[Tensor]:
         num_imgs = cls_scores.size(0)
         cls_scores_list = [cls_scores[i] for i in range(num_imgs)]
-        bbox_preds_list = [bbox_preds[i] for i in range(num_imgs)]
-        indices = [torch.argmax(cls_scores_list[i].mean(dim=1, keepdim=True)) for i in range(len(cls_scores_list))]
+        indices = [torch.argmax(cls_scores_list[i].sigmoid().mean(dim=1, keepdim=True)) for i in range(len(cls_scores_list))]
         indices = torch.stack(indices).unsqueeze(-1)
-        # select only the valid samples
         bbox_preds = bbox_preds[torch.arange(len(cls_scores_list), device='cuda:0')[:, None], indices]
-        
         # construct factors used for rescale bboxes
         factors = []
         for img_meta, bbox_pred in zip(batch_img_metas, bbox_preds):
@@ -650,10 +670,10 @@ class GroundingDINOFrameContrastiveHead(DINOHead):
                                                bbox_pred.size(0), 1)
             factors.append(factor)
         factors = torch.cat(factors, 0)
-
+        ## NOTE: we select here due to the next reshape will change the shapes
         bbox_preds = bbox_preds.reshape(-1, 4)
         bboxes = bbox_cxcywh_to_xyxy(bbox_preds) * factors
-
+        # bboxes = bboxes[torch.arange(len(cls_scores_list), device='cuda:0')[:, None], indices]
         return bboxes
     
     # NOTE: test for confirm the shape issue
@@ -700,10 +720,9 @@ class GroundingDINOFrameContrastiveHead(DINOHead):
     def loss_contrastive(self, boxes_pos, boxes_neg, boxes_gt, batch_data_samples=None):
         # trans = self.apply_boxes_torch(boxes_pos, batch_data_samples[0].img_shape).cuda()
         ## XYXY, unnormalized
-        with torch.no_grad():
-            pos_sparse_embeddings, pos_dense_embeddings = self.prompt_encoder(points=None,boxes=boxes_pos,masks=None)
-            neg_sparse_embeddings, neg_dense_embeddings = self.prompt_encoder(points=None,boxes=boxes_neg,masks=None)
-            gt_sparse_embeddings, gt_dense_embeddings = self.prompt_encoder(points=None,boxes=boxes_gt,masks=None)
+        pos_sparse_embeddings, pos_dense_embeddings = self.prompt_encoder(points=None,boxes=boxes_pos,masks=None)
+        neg_sparse_embeddings, neg_dense_embeddings = self.prompt_encoder(points=None,boxes=boxes_neg,masks=None)
+        gt_sparse_embeddings, gt_dense_embeddings = self.prompt_encoder(points=None,boxes=boxes_gt,masks=None)
         ### DEF: triplet_loss(anchor, pos, neg)
         loss = self.triplet_loss(pos_sparse_embeddings, gt_sparse_embeddings, neg_sparse_embeddings)
         return loss
