@@ -309,6 +309,7 @@ class GroundingDINOFrameLoss(DINO):
 
                     query = self.query_embedding.weight[:, None, :]
                     query = query.repeat(1, bs, 1).transpose(0, 1)
+                    query = query[i:i+1]
 
                     ## build up current frame features
                     enc_outputs_class_curr_frame = enc_outputs_class[i:i + 1].detach()
