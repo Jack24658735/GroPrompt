@@ -16,7 +16,7 @@ from torch.utils.data import DataLoader, DistributedSampler
 import util.misc as utils
 import datasets.samplers as samplers
 from datasets import build_dataset, get_coco_api_from_dataset
-from engine import train_one_epoch_sam, evaluate, evaluate_a2d, evaluate_online_a2d, evaluate_a2d_g_sam
+from engine import train_one_epoch_sam, evaluate, evaluate_a2d, evaluate_online_a2d, evaluate_a2d_g_sam, evaluate_jhmdb_g_sam
 from models import build_model
 
 from tools_refer.load_pretrained_weights import pre_trained_model_to_finetune
@@ -96,110 +96,19 @@ def main(args):
         sam.to(device=device)
         sam_predictor = SamPredictor(sam)
 
-    # model, criterion, postprocessor = build_model(args)
-    # model.to(device)
-    
-
-    #### TODO: multi-gpu is not supported yet
-    # model_without_ddp = model
-    # if args.distributed:
-    #     model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu], find_unused_parameters=True)
-    #     model_without_ddp = model.module
-
-    # no validation ground truth for ytvos dataset
-    # dataset_train = build_dataset(args.dataset_file, image_set='train', args=args)
-
-
-
-    # if args.distributed:
-    #     if args.cache_mode:
-    #         sampler_train = samplers.NodeDistributedSampler(dataset_train)
-    #     else:
-    #         sampler_train = samplers.DistributedSampler(dataset_train)
-    # else:
-    #     sampler_train = torch.utils.data.RandomSampler(dataset_train)
-
-    # batch_sampler_train = torch.utils.data.BatchSampler(
-    #     sampler_train, args.batch_size, drop_last=True)
-
-    # data_loader_train = DataLoader(dataset_train, batch_sampler=batch_sampler_train,
-    #                                collate_fn=utils.collate_fn, num_workers=args.num_workers)
-    
-
-    
     # A2D-Sentences
     if args.dataset_file == 'a2d' or args.dataset_file == 'jhmdb':
         dataset_val = build_dataset(args.dataset_file, image_set='val', args=args)
-        if args.distributed:
-            if args.cache_mode:
-                sampler_val = samplers.NodeDistributedSampler(dataset_val, shuffle=False)
-            else:
-                sampler_val = samplers.DistributedSampler(dataset_val, shuffle=False)
-        else:
-            sampler_val = torch.utils.data.SequentialSampler(dataset_val)
-        data_loader_val = DataLoader(dataset_val, args.batch_size, sampler=sampler_val,
-                                     drop_last=False, collate_fn=utils.collate_fn, num_workers=args.num_workers,
-                                     pin_memory=True)
-
-    
-
-    # if args.dataset_file == "jhmdb":
-    #     assert args.resume is not None, "Please provide the checkpoint to resume for JHMDB-Sentences"
-    #     print("============================================>")
-    #     print("JHMDB-Sentences are directly evaluated using the checkpoint trained on A2D-Sentences")
-    #     print("Load checkpoint weights from {} ...".format(args.pretrained_weights))
-    #     # load checkpoint in the args.resume
-    #     print("============================================>")
-
-    # # for Ref-Youtube-VOS and A2D-Sentences
-    # # finetune using the pretrained weights on Ref-COCO
-    # if args.dataset_file != "davis" and args.dataset_file != "jhmdb" and args.pretrained_weights is not None:
-    #     print("============================================>")
-    #     print("Load pretrained weights from {} ...".format(args.pretrained_weights))
-    #     checkpoint = torch.load(args.pretrained_weights, map_location="cpu")
-    #     checkpoint_dict = pre_trained_model_to_finetune(checkpoint, args)
-    #     model_without_ddp.load_state_dict(checkpoint_dict, strict=False)
-    #     print("============================================>")
-
-
     output_dir = Path(args.output_dir)
-    # if args.resume:
-    #     if args.resume.startswith('https'):
-    #         checkpoint = torch.hub.load_state_dict_from_url(
-    #             args.resume, map_location='cpu', check_hash=True)
-    #     else:
-    #         checkpoint = torch.load(args.resume, map_location='cpu')
-    #     missing_keys, unexpected_keys = model_without_ddp.load_state_dict(checkpoint['model'], strict=False)
-    #     unexpected_keys = [k for k in unexpected_keys if not (k.endswith('total_params') or k.endswith('total_ops'))]
-    #     if len(missing_keys) > 0:
-    #         print('Missing Keys: {}'.format(missing_keys))
-    #     if len(unexpected_keys) > 0:
-    #         print('Unexpected Keys: {}'.format(unexpected_keys))
-    #     if not args.eval and 'optimizer' in checkpoint and 'lr_scheduler' in checkpoint and 'epoch' in checkpoint:
-    #         import copy
-    #         p_groups = copy.deepcopy(optimizer.param_groups)
-    #         optimizer.load_state_dict(checkpoint['optimizer'])
-    #         for pg, pg_old in zip(optimizer.param_groups, p_groups):
-    #             pg['lr'] = pg_old['lr']
-    #             pg['initial_lr'] = pg_old['initial_lr']
-    #         # print(optimizer.param_groups)
-    #         lr_scheduler.load_state_dict(checkpoint['lr_scheduler'])
-    #         # todo: this is a hack for doing experiment that resume from checkpoint and also modify lr scheduler (e.g., decrease lr in advance).
-    #         args.override_resumed_lr_drop = True
-    #         if args.override_resumed_lr_drop:
-    #             print('Warning: (hack) args.override_resumed_lr_drop is set to True, so args.lr_drop would override lr_drop in resumed lr_scheduler.')
-    #             lr_scheduler.step_size = args.lr_drop
-    #             lr_scheduler.base_lrs = list(map(lambda group: group['initial_lr'], optimizer.param_groups))
-    #         lr_scheduler.step(lr_scheduler.last_epoch)
-    #         args.start_epoch = checkpoint['epoch'] + 1
 
     assert args.dataset_file == 'a2d' or args.dataset_file == 'jhmdb', \
                 'Only A2D-Sentences and JHMDB-Sentences datasets support evaluation'
-    # if args.semi_online:
-    #     test_stats = evaluate_online_a2d(model, data_loader_val, postprocessor, device, args)
-    # else:
-    #     test_stats = evaluate_a2d(model, data_loader_val, postprocessor, device, args)
-    test_stats = evaluate_a2d_g_sam(sam_predictor, inferencer, data_loader_val, device, args)
+    
+    if args.dataset_file == 'a2d':
+        test_stats = evaluate_a2d_g_sam(sam_predictor, inferencer, dataset_val, device, args)
+    elif args.dataset_file == 'jhmdb':
+        test_stats = evaluate_jhmdb_g_sam(sam_predictor, inferencer, dataset_val, device, args)
+
     with open(os.path.join(output_dir, 'log.json'), 'w') as f:
         json.dump(test_stats, f)
     print('Inference done.')
