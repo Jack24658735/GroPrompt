@@ -186,6 +186,9 @@ def get_args_parser():
     parser.add_argument('--use_gdino_LORA', action='store_true')
 
     parser.add_argument('--g_dino_config_path', type=str, default='')
+    
+    parser.add_argument("--gdino_thres", type = float, default = 0.0,
+                        help = "g dino output thres.")
 
     
     return parser
