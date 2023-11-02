@@ -183,11 +183,11 @@ class GroundingDINOHead(DINOHead):
 
         ###### DONE: change gt_inds to our index
         ###### Override the assigner result
-        # with torch.no_grad():
-        #     new_idx = cls_score.sigmoid().mean(-1).argmax()
-        #     our_index = torch.zeros_like(assign_result.gt_inds)
-        #     our_index[new_idx] = 1
-        #     assign_result.gt_inds = our_index
+        with torch.no_grad():
+            new_idx = cls_score.sigmoid().mean(-1).argmax()
+            our_index = torch.zeros_like(assign_result.gt_inds)
+            our_index[new_idx] = 1
+            assign_result.gt_inds = our_index
         
         pos_inds = torch.nonzero(
             assign_result.gt_inds > 0, as_tuple=False).squeeze(-1).unique()
