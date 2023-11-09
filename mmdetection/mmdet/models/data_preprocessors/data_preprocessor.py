@@ -122,6 +122,7 @@ class DetDataPreprocessor(ImgDataPreprocessor):
         """
         if type(data) != dict: # our training pipeline
             # if give num_frames != 1: data[0][0] will be (num_frames, 3, H, W)
+            raw_img = data[0][0]
             data = {'inputs': data[0][0], 'data_samples': data[1]}
             # batch_pad_shape = self._get_pad_shape(data)
             data = super().forward(data=data, training=training)
@@ -152,6 +153,8 @@ class DetDataPreprocessor(ImgDataPreprocessor):
                 new_data_samples.text = [caption for caption in data_samples['caption']][0]
                 # DONE: Add neg_text for contrastive loss
                 new_data_samples.neg_text = [caption for caption in data_samples['neg_caption']][0]
+                # DONE: Add raw image for SAM
+                new_data_samples.raw_img = raw_img
                 new_data_samples_list.append(new_data_samples)
             return {'inputs': inputs, 'data_samples': new_data_samples_list}
         else:
