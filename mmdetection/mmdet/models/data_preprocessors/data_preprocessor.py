@@ -155,6 +155,12 @@ class DetDataPreprocessor(ImgDataPreprocessor):
                 new_data_samples.neg_text = [caption for caption in data_samples['neg_caption']][0]
                 # DONE: Add raw image for SAM
                 new_data_samples.raw_img = raw_img
+                # TODO: add valid_indices
+                if 'valid_indices' in data_samples:
+                    new_data_samples.valid_indices =  [v for v in data_samples['valid_indices']][0]
+                    new_data_samples.is_a2d = True
+                else:
+                    new_data_samples.is_a2d = False
                 new_data_samples_list.append(new_data_samples)
             return {'inputs': inputs, 'data_samples': new_data_samples_list}
         else:

@@ -488,15 +488,35 @@ class GroundingDINOHead(DINOHead):
         """
         batch_gt_instances = []
         batch_img_metas = []
-        for data_sample in batch_data_samples:
-            batch_img_metas.append(data_sample.metainfo)
-            batch_gt_instances.append(data_sample.gt_instances)
 
-        outs = self(hidden_states, references, memory_text, text_token_mask)
-        self.text_masks = text_token_mask
-        loss_inputs = outs + (enc_outputs_class, enc_outputs_coord,
-                              batch_gt_instances, batch_img_metas, dn_meta)
-        losses = self.loss_by_feat(*loss_inputs)
+        # TODO: for a2d dataset only 1 need to be calculate loss (by valid indices)
+        # REF: https://github.com/bo-miao/SgMg/blob/6776894326d0b4a3af6566c726124460125e5e59/models/sgmg.py#L220
+        is_a2d = batch_data_samples[0].is_a2d
+        if is_a2d:
+            valid_indices = batch_data_samples[0].valid_indices # NOTE: only 1 valid
+            batch_data_samples = [batch_data_samples[valid_indices]]
+            for data_sample in batch_data_samples:
+                batch_img_metas.append(data_sample.metainfo)
+                batch_gt_instances.append(data_sample.gt_instances)
+            refine_references = []
+            for ref in references:
+                refine_references.append(ref[valid_indices:valid_indices + 1, :, :])
+            outs = self(hidden_states[:, valid_indices:valid_indices + 1, :, :], refine_references, 
+                        memory_text[valid_indices:valid_indices + 1, :, :], text_token_mask[valid_indices:valid_indices + 1])
+            self.text_masks = text_token_mask[valid_indices:valid_indices + 1]
+            loss_inputs = outs + (enc_outputs_class[valid_indices:valid_indices + 1, :, :], enc_outputs_coord[valid_indices:valid_indices + 1, :, :],
+                                batch_gt_instances, batch_img_metas, dn_meta)
+            losses = self.loss_by_feat(*loss_inputs)
+        else: # ytvos
+            for data_sample in batch_data_samples:
+                batch_img_metas.append(data_sample.metainfo)
+                batch_gt_instances.append(data_sample.gt_instances)
+
+            outs = self(hidden_states, references, memory_text, text_token_mask)
+            self.text_masks = text_token_mask
+            loss_inputs = outs + (enc_outputs_class, enc_outputs_coord,
+                                batch_gt_instances, batch_img_metas, dn_meta)
+            losses = self.loss_by_feat(*loss_inputs)
         return losses
 
     def loss_by_feat_single(self, cls_scores: Tensor, bbox_preds: Tensor,
