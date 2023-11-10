@@ -36,7 +36,6 @@ class FreezeLayerHookV2(Hook):
             param.requires_grad = True
         for param in model.bbox_head.video_attn.parameters():
             param.requires_grad = True
-        import ipdb; ipdb.set_trace()
         n_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
         total_parameters = sum(p.numel() for p in model.parameters())
         print('number of params for tuning:', n_parameters)
