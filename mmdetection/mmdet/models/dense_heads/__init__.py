@@ -28,6 +28,7 @@ from .ga_rpn_head import GARPNHead
 from .gfl_head import GFLHead
 from .grounding_dino_head import GroundingDINOHead
 from .grounding_dino_contrastive_head import GroundingDINOFrameContrastiveHead
+from .grounding_dino_contrastive_video_head import GroundingDINOFrameContrastiveVideoHead
 from .guided_anchor_head import FeatureAdaption, GuidedAnchorHead
 from .lad_head import LADHead
 from .ld_head import LDHead
@@ -69,5 +70,6 @@ __all__ = [
     'CenterNetUpdateHead', 'RTMDetHead', 'RTMDetSepBNHead', 'CondInstBboxHead',
     'CondInstMaskHead', 'RTMDetInsHead', 'RTMDetInsSepBNHead',
     'BoxInstBboxHead', 'BoxInstMaskHead', 'ConditionalDETRHead', 'DINOHead',
-    'ATSSVLFusionHead', 'DABDETRHead', 'DDQDETRHead', 'GroundingDINOHead','GroundingDINOFrameContrastiveHead'
+    'ATSSVLFusionHead', 'DABDETRHead', 'DDQDETRHead', 'GroundingDINOHead','GroundingDINOFrameContrastiveHead', 
+    'GroundingDINOFrameContrastiveVideoHead'
 ]
