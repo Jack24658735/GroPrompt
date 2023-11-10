@@ -17,11 +17,12 @@ from .freeze_layer_hook import FreezeLayerHook
 from .Add_lora_hook import AddLoRAHook
 from .custom_validation_hook import CustomValidationHook
 from .custom_validation_hook_a2d import CustomValidationHookA2D
+from .freeze_layer_hook_v2 import FreezeLayerHookV2
 
 __all__ = [
     'Hook', 'IterTimerHook', 'DistSamplerSeedHook', 'ParamSchedulerHook',
     'SyncBuffersHook', 'EmptyCacheHook', 'CheckpointHook', 'LoggerHook',
     'NaiveVisualizationHook', 'EMAHook', 'RuntimeInfoHook', 'ProfilerHook',
     'PrepareTTAHook', 'NPUProfilerHook', 'EarlyStoppingHook', 'FreezeLayerHook',
-    'AddLoRAHook', 'CustomValidationHook', 'CustomValidationHookA2D'
+    'AddLoRAHook', 'CustomValidationHook', 'CustomValidationHookA2D', 'FreezeLayerHookV2'
 ]
