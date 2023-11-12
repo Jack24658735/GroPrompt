@@ -666,7 +666,8 @@ class GroundingDINOFrameContrastiveHead(DINOHead):
         cls_scores_list = [cls_scores[i] for i in range(num_imgs)]
         indices = [torch.argmax(cls_scores_list[i].sigmoid().mean(dim=1, keepdim=True)) for i in range(len(cls_scores_list))]
         indices = torch.stack(indices).unsqueeze(-1)
-        bbox_preds = bbox_preds[torch.arange(len(cls_scores_list), device='cuda:0')[:, None], indices]
+        first_dim_idx = torch.arange(len(cls_scores_list))[:, None].cuda()
+        bbox_preds = bbox_preds[first_dim_idx, indices]
         # construct factors used for rescale bboxes
         factors = []
         for img_meta, bbox_pred in zip(batch_img_metas, bbox_preds):
@@ -679,7 +680,6 @@ class GroundingDINOFrameContrastiveHead(DINOHead):
         ## NOTE: we select here due to the next reshape will change the shapes
         bbox_preds = bbox_preds.reshape(-1, 4)
         bboxes = bbox_cxcywh_to_xyxy(bbox_preds) * factors
-        # bboxes = bboxes[torch.arange(len(cls_scores_list), device='cuda:0')[:, None], indices]
         return bboxes
     
     # NOTE: test for confirm the shape issue
