@@ -686,7 +686,8 @@ class GroundingDINOFrameContrastiveVideoHead(DINOHead):
         cls_scores_list = [cls_scores[i] for i in range(num_imgs)]
         indices = [torch.argmax(cls_scores_list[i].sigmoid().mean(dim=1, keepdim=True)) for i in range(len(cls_scores_list))]
         indices = torch.stack(indices).unsqueeze(-1)
-        bbox_preds = bbox_preds[torch.arange(len(cls_scores_list), device='cuda:0')[:, None], indices]
+        first_dim_idx = torch.arange(len(cls_scores_list))[:, None].cuda()
+        bbox_preds = bbox_preds[first_dim_idx, indices]
         # construct factors used for rescale bboxes
         factors = []
         for img_meta, bbox_pred in zip(batch_img_metas, bbox_preds):
@@ -757,17 +758,16 @@ class GroundingDINOFrameContrastiveVideoHead(DINOHead):
     def loss_video_contrastive(self, boxes_pos, batch_data_samples, text_dict, text_neg_dict):
         img_feats = []
         # DONE: sam img_encoder
-        for i in range(batch_data_samples[0].raw_img.shape[0]):
-            # setup num_of_frames features
-            # import ipdb; ipdb.set_trace()
-            # sam set_image: need shape (h,w,3)
-            # but our input: 3, h, w
-            self.sam_predictor.set_image(batch_data_samples[0].raw_img[i].cpu().numpy().transpose(1, 2, 0), image_format='BGR')
-            img_feats.append(self.sam_predictor.features)
-        # img_feats: (num_frames, 256, 64, 64)
-        img_feats = torch.cat(img_feats, dim=0)
-        
-
+        with torch.no_grad():
+            for i in range(batch_data_samples[0].raw_img.shape[0]):
+                # setup num_of_frames features
+                # import ipdb; ipdb.set_trace()
+                # sam set_image: need shape (h,w,3)
+                # but our input: 3, h, w
+                self.sam_predictor.set_image(batch_data_samples[0].raw_img[i].cpu().numpy().transpose(1, 2, 0), image_format='BGR')
+                img_feats.append(self.sam_predictor.features)
+            # img_feats: (num_frames, 256, 64, 64)
+            img_feats = torch.cat(img_feats, dim=0)
         # => 1,256,64,64
         # (1, 256,4096) => key, value
         # (1, 2, 512) => linear => 1, 2, 256 => query
@@ -804,12 +804,10 @@ class GroundingDINOFrameContrastiveVideoHead(DINOHead):
         neg_text_feats = text_neg_dict['hidden'][0:1] # (1, L, 768)
         # pos_text_feats = text_dict['embedded'] # (1, L, 256)
         # neg_text_feats = text_neg_dict['embedded'] # (1, L, 256)
-        pos_text_feats = pos_text_feats.mean(dim=1).unsqueeze(1)
-        neg_text_feats = neg_text_feats.mean(dim=1).unsqueeze(1)
+        pos_text_feats = pos_text_feats.mean(dim=1).unsqueeze(1).detach()
+        neg_text_feats = neg_text_feats.mean(dim=1).unsqueeze(1).detach()
         ### DEF: triplet_loss(anchor, pos, neg)
         loss = self.triplet_loss(attn_feats, pos_text_feats, neg_text_feats)
-        # loss = 0
-        # loss = our_trans(img_feats, pos_sparse_embeddings, )
         return loss
         
 
