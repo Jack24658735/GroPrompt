@@ -247,6 +247,8 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
     font_path = "fonts/OpenSans-Regular.ttf"
     font = ImageFont.truetype(font_path, 30) # change the '30' to any size you want
     # 1. For each video
+    # video_list = [video_list[video_list.index('0a598e18a8')]]
+    
     for video in video_list:
         metas = []  # list[dict], length is number of expressions
 
@@ -284,7 +286,7 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
             # track_res = model.generate_empty_tracks()
             # TODO: for SAM model
             #### NOT TEST
-            for clip in clip_list:
+            for idx, clip in enumerate(clip_list):
                 frames = clip
                 clip_len = len(frames)
 
@@ -306,7 +308,7 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
                         if args.use_SAM:
                             # TODO: perform detection with Grounding DINO
                             # detect objects
-                            result = inferencer(img, texts=exp)
+                            result = inferencer(img, texts=exp, frame_idx=idx)
                             logits = torch.tensor(result['predictions'][0]['scores'])
                             boxes = torch.tensor(result['predictions'][0]['bboxes'])
 
@@ -315,7 +317,8 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
                                 boxes_xyxy = torch.zeros((1, 4))
                                 ### DONE:
                                 # if this situation, no need SAM! (just all zeros)
-                                masks = torch.zeros(masks.shape).to(device)
+                                masks = torch.zeros(img.shape[:2]).unsqueeze(0).unsqueeze(0).to(device)
+                                # masks.shape: (1, h, w)
                                 pred_masks.append(masks)
                                 pred_boxes.append(boxes_xyxy)
                                 pred_logits.append(torch.zeros((1,)))
@@ -331,7 +334,7 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
                                 transformed_boxes = sam_predictor.transform.apply_boxes_torch(boxes_xyxy, img.shape[:2]).to(device)
                                 # print(transformed_boxes)
                                 # print(transformed_boxes.shape)
-                                masks, _, _ = sam_predictor.predict_torch(
+                                masks, iou_predictions, _ = sam_predictor.predict_torch(
                                             point_coords = None,
                                             point_labels = None,
                                             boxes = transformed_boxes,
@@ -364,7 +367,6 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
                 pred_masks = pred_masks[range(clip_len), max_inds, ...]  # [t, h, w]
                 pred_masks = pred_masks.unsqueeze(0)
                 pred_masks = pred_masks.squeeze(0).detach().cpu().numpy()
-
                 # pred_masks = F.interpolate(pred_masks, size=(origin_h, origin_w), mode='bilinear', align_corners=False)
                 # pred_masks = (pred_masks.sigmoid() > args.threshold).squeeze(0).detach().cpu().numpy()
 

@@ -511,7 +511,7 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
                         draw.rectangle(((xmin, ymin), (xmax, ymax)), outline=tuple(color_list[k%len(color_list)]), width=2)
                         # plot the bbox score
                         plot_bbox_score = f'{anno_logits[k - 1][f].item():.2f}'
-                        draw.text((xmin, ymin), plot_bbox_score, (255, 0, 0), font=font)
+                        # draw.text((xmin, ymin), plot_bbox_score, (255, 0, 0), font=font)
 
                         mask_arr = np.array(img_E)
                         # print(mask_arr.shape)
