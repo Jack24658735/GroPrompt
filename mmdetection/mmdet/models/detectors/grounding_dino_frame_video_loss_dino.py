@@ -490,7 +490,7 @@ class GroundingDINOFrameVideoLossDINO(DINO):
             losses['loss_frame_contrastive'] = self.loss_contrastive_weight * contrastive_loss
 
              ## NOTE: batch_data_samples contains raw image for SAM usage
-            video_contrastive_loss = self.bbox_head.loss_video_contrastive(bbox_pos, batch_data_samples, text_dict, text_neg_dict)
+            video_contrastive_loss = self.bbox_head.loss_video_contrastive(bbox_pos, batch_data_samples, text_dict, text_neg_dict, visual_features)
             losses['loss_video_contrastive'] = self.loss_contrastive_video_weight * video_contrastive_loss
 
         return losses

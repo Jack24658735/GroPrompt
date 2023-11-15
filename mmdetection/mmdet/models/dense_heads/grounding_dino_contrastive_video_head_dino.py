@@ -755,10 +755,10 @@ class GroundingDINOFrameContrastiveVideoHeadDINO(DINOHead):
         return loss
 
 
-    def loss_video_contrastive(self, boxes_pos, batch_data_samples, text_dict, text_neg_dict):
-        img_feats = []
+    def loss_video_contrastive(self, boxes_pos, batch_data_samples, text_dict, text_neg_dict, img_feats):
+        # img_feats = []
         # TODO: reuse g-dino feat.
-        
+        img_feats = img_feats[1].detach() # (5, 256, 45, 80)
         # DONE: sam img_encoder
         # with torch.no_grad():
         #     for i in range(batch_data_samples[0].raw_img.shape[0]):
