@@ -34,6 +34,7 @@ from .grounding_dino_prop_v3 import GroundingDINOPropV3
 from .grounding_dino_prop_offline import GroundingDINOPropOffline
 from .grounding_dino_frame_loss import GroundingDINOFrameLoss
 from .grounding_dino_frame_video_loss import GroundingDINOFrameVideoLoss
+from .grounding_dino_frame_video_loss_dino import GroundingDINOFrameVideoLossDINO
 from .htc import HybridTaskCascade
 from .kd_one_stage import KnowledgeDistillationSingleStageDetector
 from .lad import LAD
@@ -80,5 +81,5 @@ __all__ = [
     'RTMDet', 'Detectron2Wrapper', 'CrowdDet', 'CondInst', 'BoxInst',
     'DetectionTransformer', 'ConditionalDETR', 'DINO', 'DABDETR', 'GLIP',
     'DDQDETR', 'GroundingDINO', 'GroundingDINOProp', 'GroundingDINOFrameLoss', 'GroundingDINOPropOffline', 
-    'GroundingDINOFrameVideoLoss', 'GroundingDINOPropV1', 'GroundingDINOPropV2', 'GroundingDINOPropV1_1', 'GroundingDINOPropV3'
+    'GroundingDINOFrameVideoLoss', 'GroundingDINOPropV1', 'GroundingDINOPropV2', 'GroundingDINOPropV1_1', 'GroundingDINOPropV3', 'GroundingDINOFrameVideoLossDINO'
 ]

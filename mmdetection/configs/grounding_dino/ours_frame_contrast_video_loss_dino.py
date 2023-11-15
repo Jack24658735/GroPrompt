@@ -37,7 +37,7 @@ custom_hooks = [
 #############################################################################################################
 
 model = dict(
-    type='GroundingDINOFrameVideoLoss',
+    type='GroundingDINOFrameVideoLossDINO',
     backbone=dict(
         pretrain_img_size=384,
         embed_dims=128,
