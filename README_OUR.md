@@ -58,6 +58,7 @@ R-VOS Project
     cd mmengine
     pip install -v -e .
     ```
+3. Also, need to install the packages in `requirements.txt` in grounding_dino folder under mmdet. (multimodal.txt)
 
 # G-DINO
 
