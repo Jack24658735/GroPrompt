@@ -498,7 +498,7 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
                         # print(len(all_exps))
                         text = all_exps[exp_idx]
                         position = (10, 10)
-                        draw.text(position, text, (255, 0, 0), font=font)
+                        # draw.text(position, text, (255, 0, 0), font=font)
 
                         
                         draw_boxes = anno_boxes[k - 1][f].unsqueeze(0)

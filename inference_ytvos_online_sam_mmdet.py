@@ -400,7 +400,7 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
 
                         text = exp
                         position = (10, 10)
-                        draw.text(position, text, (255, 0, 0), font=font)
+                        # draw.text(position, text, (255, 0, 0), font=font)
 
                         # draw inter reference point
                         # ref_points = all_pred_ref_points[t].unsqueeze(0).detach().cpu().tolist()
