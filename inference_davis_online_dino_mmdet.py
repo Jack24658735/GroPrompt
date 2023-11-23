@@ -91,8 +91,8 @@ def main(args):
 
     # create subprocess
     thread_num = args.ngpu
-    global result_dict
-    result_dict = mp.Manager().dict()
+    # global result_dict
+    # result_dict = mp.Manager().dict()
 
     processes = []
     # lock = threading.Lock()
@@ -124,10 +124,10 @@ def main(args):
     end_time = time.time()
     total_time = end_time - start_time
 
-    result_dict = dict(result_dict)
-    num_all_frames_gpus = 0
-    for pid, num_all_frames in result_dict.items():
-        num_all_frames_gpus += num_all_frames
+    # result_dict = dict(result_dict)
+    # num_all_frames_gpus = 0
+    # for pid, num_all_frames in result_dict.items():
+    #     num_all_frames_gpus += num_all_frames
 
     print("Total inference time: %.4f s" % (total_time))
 
@@ -418,7 +418,7 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
 
         with lock:
             progress.update(1)
-    result_dict[str(pid)] = num_all_frames
+    # result_dict[str(pid)] = num_all_frames
     with lock:
         progress.close()
 
