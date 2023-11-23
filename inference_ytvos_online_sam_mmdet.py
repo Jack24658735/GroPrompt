@@ -12,7 +12,6 @@ import numpy as np
 import torch
 
 import util.misc as utils
-from models import build_model
 import torchvision.transforms as T
 import matplotlib.pyplot as plt
 import os
@@ -49,11 +48,6 @@ transform = T.Compose([
     T.ToTensor(),
     T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 ])
-
-
-
-
-
 
 def main(args):
     args.masks = True
@@ -186,31 +180,6 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
             sam = build_sam_hq(checkpoint=sam_hq_checkpoint, mask_threshold=args.mask_threshold)
             sam.to(device=device)
             sam_predictor = SamPredictor(sam)
-    else:
-        # model
-        model, criterion, _ = build_model(args)
-        device = args.device
-        model.to(device)
-
-        model_without_ddp = model
-        n_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
-
-        if pid == 0:
-            print('number of params:', n_parameters)
-
-        if args.resume:
-            checkpoint = torch.load(args.resume, map_location='cpu')
-            missing_keys, unexpected_keys = model_without_ddp.load_state_dict(checkpoint['model'], strict=False)
-            unexpected_keys = [k for k in unexpected_keys if not (k.endswith('total_params') or k.endswith('total_ops'))]
-            if len(missing_keys) > 0:
-                print('Missing Keys: {}'.format(missing_keys))
-            if len(unexpected_keys) > 0:
-                print('Unexpected Keys: {}'.format(unexpected_keys))
-        else:
-            raise ValueError('Please specify the checkpoint for inference.')
-
-        # start inference
-        model.eval()
 
     num_all_frames = 0
     fps_time = 0.0
