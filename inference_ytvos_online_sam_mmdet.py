@@ -95,7 +95,8 @@ def main(args):
     result_dict = mp.Manager().dict()
 
     processes = []
-    lock = threading.Lock()
+    # lock = threading.Lock()
+    lock = mp.Lock()
 
     video_num = len(video_list)
     per_thread_video_num = video_num // thread_num
