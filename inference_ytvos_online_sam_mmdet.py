@@ -29,7 +29,6 @@ import threading
 
 from tools_refer.colormap import colormap
 
-from segment_anything import SamPredictor
 from segment_anything import build_sam, SamPredictor, build_sam_hq
 
 from sam_lora_image_encoder_mask_decoder import LoRA_Sam
@@ -104,21 +103,21 @@ def main(args):
     start_time = time.time()
     print('Start inference')
     ### Note: workaround to avoid the multi-process issue...
-    sub_video_list = video_list[0:]
-    sub_processor(lock, 0, args, data, save_path_prefix, save_visualize_path_prefix, img_folder, sub_video_list)
-    # for i in range(thread_num):
-    #     if i == thread_num - 1:
-    #         sub_video_list = video_list[i * per_thread_video_num:]
-    #     else:
-    #         sub_video_list = video_list[i * per_thread_video_num: (i + 1) * per_thread_video_num]
-    #     p = mp.Process(target=sub_processor, args=(lock, i, args, data,
-    #                                                save_path_prefix, save_visualize_path_prefix,
-    #                                                img_folder, sub_video_list))
-    #     p.start()
-    #     processes.append(p)
+    # sub_video_list = video_list[0:]
+    # sub_processor(lock, 0, args, data, save_path_prefix, save_visualize_path_prefix, img_folder, sub_video_list)
+    for i in range(thread_num):
+        if i == thread_num - 1:
+            sub_video_list = video_list[i * per_thread_video_num:]
+        else:
+            sub_video_list = video_list[i * per_thread_video_num: (i + 1) * per_thread_video_num]
+        p = mp.Process(target=sub_processor, args=(lock, i, args, data,
+                                                   save_path_prefix, save_visualize_path_prefix,
+                                                   img_folder, sub_video_list))
+        p.start()
+        processes.append(p)
 
-    # for p in processes:
-    #     p.join()
+    for p in processes:
+        p.join()
 
     end_time = time.time()
     total_time = end_time - start_time
@@ -155,10 +154,10 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
         checkpoint_file = args.g_dino_ckpt_path
         # Build the model from a config file and a checkpoint file
         # model = init_detector(config_file, checkpoint_file, device='cuda:0')
-        inferencer = DetInferencer(model=config_file, weights=checkpoint_file, device='cuda:0', show_progress=False)
+        inferencer = DetInferencer(model=config_file, weights=checkpoint_file, device='cuda', show_progress=False)
 
         ## 2. Building SAM Model and SAM Predictor
-        device = torch.device('cuda:0')
+        # device = torch.device('cuda:0')
         # sam_checkpoint = '/home/liujack/RVOS/Grounded-Segment-Anything/sam_vit_h_4b8939.pth'
         # sam_hq_checkpoint = '/home/liujack/RVOS/Grounded-Segment-Anything/sam_hq_vit_h.pth'
         sam_hq_checkpoint = args.sam_ckpt_path
@@ -166,7 +165,7 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
         if args.use_LORA_SAM:
             sam = build_sam_hq(checkpoint=sam_hq_checkpoint, mask_threshold=args.mask_threshold)
             # use_sam_hq
-            sam.to(device=device)
+            sam.cuda()
             lora_sam = LoRA_Sam(sam, args.lora_rank).cuda()
             model = lora_sam
             ckpt = torch.load(lora_sam_ckpt_path)
@@ -178,7 +177,7 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
         else:
             # sam = build_sam(checkpoint=sam_checkpoint)
             sam = build_sam_hq(checkpoint=sam_hq_checkpoint, mask_threshold=args.mask_threshold)
-            sam.to(device=device)
+            sam.cuda()
             sam_predictor = SamPredictor(sam)
 
     num_all_frames = 0
@@ -258,7 +257,7 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
                                 boxes_xyxy = torch.zeros((1, 4))
                                 ### DONE:
                                 # if this situation, no need SAM! (just all zeros)
-                                masks = torch.zeros(img.shape[:2]).unsqueeze(0).unsqueeze(0).to(device)
+                                masks = torch.zeros(img.shape[:2]).unsqueeze(0).unsqueeze(0).cuda()
                                 # masks.shape: (1, h, w)
                                 pred_masks.append(masks)
                                 pred_boxes.append(boxes_xyxy)
@@ -272,7 +271,7 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
                                 # H, W, _ = img.shape
                                 boxes_xyxy = boxes
                             
-                                transformed_boxes = sam_predictor.transform.apply_boxes_torch(boxes_xyxy, img.shape[:2]).to(device)
+                                transformed_boxes = sam_predictor.transform.apply_boxes_torch(boxes_xyxy, img.shape[:2]).cuda()
                                 # print(transformed_boxes)
                                 # print(transformed_boxes.shape)
                                 masks, iou_predictions, _ = sam_predictor.predict_torch(
@@ -451,6 +450,7 @@ def vis_add_mask(img, mask, color):
 
 
 if __name__ == '__main__':
+    mp.set_start_method('spawn')
     parser = argparse.ArgumentParser('OnlineRefer inference script', parents=[opts.get_args_parser()])
     args = parser.parse_args()
     main(args)

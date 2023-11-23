@@ -473,6 +473,7 @@ def vis_add_mask(img, mask, color):
 
 
 if __name__ == '__main__':
+    mp.set_start_method('spawn')
     parser = argparse.ArgumentParser('OnlineRefer inference script', parents=[opts.get_args_parser()])
     args = parser.parse_args()
     main(args)
