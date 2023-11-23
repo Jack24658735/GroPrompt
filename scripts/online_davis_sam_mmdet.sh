@@ -1,4 +1,10 @@
-
+GPUS='0,1'
+GPUS_PER_NODE=2
+export CUDA_VISIBLE_DEVICES=${GPUS}
+echo "using gpus ${GPUS}."
+now=$(date +"%T")
+echo "Current time : $now"
+echo "Current path : $PWD"
 
 OUTPUT_DIR=$1
 SAM_CHECKPOINT=$2
@@ -7,7 +13,7 @@ PY_ARGS=${@:3}  # Any arguments from the forth one are captured by this
 # test using the model trained on ref-youtube-vos directly
 python3 inference_davis_online_sam_mmdet.py --binary  \
 --output_dir=${OUTPUT_DIR} --dataset_file davis \
---online --use_SAM --sam_ckpt_path ${SAM_CHECKPOINT} --visualize ${PY_ARGS}
+--online --use_SAM --sam_ckpt_path ${SAM_CHECKPOINT} --visualize --ngpu=${GPUS_PER_NODE} ${PY_ARGS}
 
 # evaluation
 ANNO0_DIR=${OUTPUT_DIR}/"valid"/"anno_0"
