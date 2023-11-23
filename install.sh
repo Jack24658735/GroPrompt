@@ -4,7 +4,7 @@ pip install -r requirements.txt
 
 python -m pip install -e segment_anything
 
-pip install "mmcv>=2.0.0" -f https://download.openmmlab.com/mmcv/dist/cu116/torch1.12.0/index.html
+pip install "mmcv==2.0.0" -f https://download.openmmlab.com/mmcv/dist/cu116/torch1.12.0/index.html
 
 cd mmdetection
 pip install -v -e .
