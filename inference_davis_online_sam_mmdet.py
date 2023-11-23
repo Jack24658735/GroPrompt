@@ -30,17 +30,11 @@ import multiprocessing as mp
 import threading
 
 from tools_refer.colormap import colormap
-
-from segment_anything import sam_model_registry, SamPredictor
-from huggingface_hub import hf_hub_download
 from segment_anything import build_sam, SamPredictor, build_sam_hq
 
-# Grounding DINO
-# import GroundingDINO.groundingdino.datasets.transforms as T
-from GroundingDINO.groundingdino.util import box_ops
-from GroundingDINO.groundingdino.util.slconfig import SLConfig
-from GroundingDINO.groundingdino.util.utils import clean_state_dict, get_phrases_from_posmap
-from GroundingDINO.groundingdino.util.inference import annotate, load_image, predict
+import mmcv
+from mmdet.apis import DetInferencer
+import torch.nn as nn
 
 import csv
 
@@ -59,39 +53,6 @@ transform = T.Compose([
     T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 ])
 
-### Settings for Grounding Dino & SAM
-# GroundingDINO config and checkpoint
-# GROUNDING_DINO_CONFIG_PATH = "GroundingDINO/groundingdino/config/GroundingDINO_SwinT_OGC.py"
-# GROUNDING_DINO_CHECKPOINT_PATH = "./groundingdino_swint_ogc.pth"
-
-# Segment-Anything checkpoint
-# SAM_ENCODER_VERSION = "vit_h"
-# SAM_CHECKPOINT_PATH = "./sam_vit_h_4b8939.pth"
-
-import cv2
-import mmcv
-from mmdet.apis import DetInferencer
-import torch.nn as nn
-
-
-
-
-def load_model_hf(args, repo_id, filename, ckpt_config_filename, device='cpu'):
-    # particularly import build_model since the function name is same as onlinerefer
-    if args.use_SAM:
-        from GroundingDINO.groundingdino.models import build_model
-    cache_config_file = hf_hub_download(repo_id=repo_id, filename=ckpt_config_filename)
-   
-    args_gdino = SLConfig.fromfile(cache_config_file) 
-    model = build_model(args_gdino)
-    args_gdino.device = device
-
-    cache_file = hf_hub_download(repo_id=repo_id, filename=filename)
-    checkpoint = torch.load(cache_file, map_location='cpu')
-    log = model.load_state_dict(clean_state_dict(checkpoint['model']), strict=False)
-    print("Model loaded from {} \n => {}".format(cache_file, log))
-    _ = model.eval()
-    return model
 
 def main(args):
     args.dataset_file = "davis"
