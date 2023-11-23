@@ -50,6 +50,7 @@ class CustomValidationHook(Hook):
                     '--g_dino_ckpt_path=' + f'{runner.work_dir}/epoch_{self.curr_epoch}.pth',
                     '--use_gdino_LORA',
                     '--g_dino_config_path=' + f'{runner.work_dir}/{cfg_path}',
+                    '--ngpu=' + '4',
                     
                 ]
             else:
@@ -65,6 +66,7 @@ class CustomValidationHook(Hook):
                     # setup the model path for loading
                     '--g_dino_ckpt_path=' + f'{runner.work_dir}/epoch_{self.curr_epoch}.pth',
                     '--g_dino_config_path=' + f'{runner.work_dir}/{cfg_path}',
+                    '--ngpu=' + '4',
                 ]
             # Run the command
             subprocess.run(cmd)
