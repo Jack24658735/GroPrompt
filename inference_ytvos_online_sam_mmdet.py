@@ -30,18 +30,14 @@ import threading
 
 from tools_refer.colormap import colormap
 
-import supervision as sv
-# from groundingdino.util.inference import Model
 from segment_anything import SamPredictor
-from huggingface_hub import hf_hub_download
 from segment_anything import build_sam, SamPredictor, build_sam_hq
 
-# Grounding DINO
-# import GroundingDINO.groundingdino.datasets.transforms as T
-from GroundingDINO.groundingdino.util import box_ops
-from GroundingDINO.groundingdino.util.slconfig import SLConfig
-from GroundingDINO.groundingdino.util.utils import clean_state_dict
-from GroundingDINO.groundingdino.util.inference import predict
+from sam_lora_image_encoder_mask_decoder import LoRA_Sam
+
+import mmcv
+from mmdet.apis import DetInferencer
+
 
 # colormap
 color_list = colormap()
@@ -54,39 +50,15 @@ transform = T.Compose([
     T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 ])
 
-from sam_lora_image_encoder_mask_decoder import LoRA_Sam
-
-
-import cv2
-import mmcv
-from mmdet.apis import DetInferencer
 
 
 
-def load_model_hf(args, repo_id, filename, ckpt_config_filename, device='cpu'):
-    # particularly import build_model since the function name is same as onlinerefer
-    if args.use_SAM:
-        from GroundingDINO.groundingdino.models import build_model
-    cache_config_file = hf_hub_download(repo_id=repo_id, filename=ckpt_config_filename)
-   
-    args_gdino = SLConfig.fromfile(cache_config_file) 
-    model = build_model(args_gdino)
-    args_gdino.device = device
-
-    cache_file = hf_hub_download(repo_id=repo_id, filename=filename)
-    checkpoint = torch.load(cache_file, map_location='cpu')
-    log = model.load_state_dict(clean_state_dict(checkpoint['model']), strict=False)
-    print("Model loaded from {} \n => {}".format(cache_file, log))
-    _ = model.eval()
-    return model 
 
 
 def main(args):
     args.masks = True
     args.batch_size == 1
     print("Inference only supports for batch size = 1")
-    if args.use_trained_gdino:
-        print(f'*** Loaded from {args.g_dino_ckpt_path} ***')
 
     # fix the seed for reproducibility
     seed = args.seed + utils.get_rank()
