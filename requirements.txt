@@ -12,3 +12,6 @@ h5py
 av
 ipdb
 tensorboardx
+fairscale
+nltk
+pycocoevalcap
