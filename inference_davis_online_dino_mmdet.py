@@ -42,7 +42,7 @@ import torch.nn as nn
 transformers.logging.set_verbosity(transformers.logging.ERROR)
 
 
-DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+# DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # colormap
 color_list = colormap()
@@ -95,7 +95,8 @@ def main(args):
     result_dict = mp.Manager().dict()
 
     processes = []
-    lock = threading.Lock()
+    # lock = threading.Lock()
+    lock = mp.Lock()
 
     video_num = len(video_list)
     per_thread_video_num = math.ceil(float(video_num) / float(thread_num))
@@ -103,22 +104,22 @@ def main(args):
     start_time = time.time()
     print('Start inference')
     ### Note: workaround to avoid the multi-process issue...
-    sub_video_list = video_list[0:]
-    sub_processor(lock, 0, args, data, save_path_prefix, save_visualize_path_prefix, img_folder, sub_video_list)
+    # sub_video_list = video_list[0:]
+    # sub_processor(lock, 0, args, data, save_path_prefix, save_visualize_path_prefix, img_folder, sub_video_list)
 
-    # for i in range(thread_num):
-    #     if i == thread_num - 1:
-    #         sub_video_list = video_list[i * per_thread_video_num:]
-    #     else:
-    #         sub_video_list = video_list[i * per_thread_video_num: (i + 1) * per_thread_video_num]
-    #     p = mp.Process(target=sub_processor, args=(lock, i, args, data,
-    #                                                save_path_prefix, save_visualize_path_prefix,
-    #                                                img_folder, sub_video_list))
-    #     p.start()
-    #     processes.append(p)
+    for i in range(thread_num):
+        if i == thread_num - 1:
+            sub_video_list = video_list[i * per_thread_video_num:]
+        else:
+            sub_video_list = video_list[i * per_thread_video_num: (i + 1) * per_thread_video_num]
+        p = mp.Process(target=sub_processor, args=(lock, i, args, data,
+                                                   save_path_prefix, save_visualize_path_prefix,
+                                                   img_folder, sub_video_list))
+        p.start()
+        processes.append(p)
 
-    # for p in processes:
-    #     p.join()
+    for p in processes:
+        p.join()
 
     end_time = time.time()
     total_time = end_time - start_time
@@ -216,7 +217,7 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
     
     # Build the model from a config file and a checkpoint file
     # model = init_detector(config_file, checkpoint_file, device='cuda:0')
-    inferencer = DetInferencer(model=config_file, weights=checkpoint_file, device='cuda:0', show_progress=False)
+    inferencer = DetInferencer(model=config_file, weights=checkpoint_file, device='cuda', show_progress=False)
     if args.use_gdino_LORA:
         inferencer.model = add_lora(inferencer.model)
         checkpoint = torch.load(args.g_dino_ckpt_path, map_location='cpu')
@@ -224,7 +225,6 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
         inferencer.model.eval()
         print('Reload the ckpt for LORA')
 
-    device = torch.device('cuda:0')
 
     # get palette
     palette_img = os.path.join(args.davis_path, "valid/Annotations/blackswan/00000.png")
