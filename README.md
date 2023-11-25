@@ -21,6 +21,9 @@ Referring Video Object Segmentation (RVOS) aims to segment the object referred t
 ## Update
 - **(2023/11/18)** GroPrompt is under reviewed by CVPR2024.
 
+## DEMO
+### TBD
+
 ## Environment setup steps
 Please refer to [data.md](docs/data.md) for data preparation.
 
