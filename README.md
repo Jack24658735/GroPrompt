@@ -11,8 +11,7 @@ The official implementation of the **CVPR 2024** under-review paper:
 <p align="center"><img src="docs/model.png" width="800"/></p>
 
 
-> *GroPrompt: Grounded Prompting for Referring Video Object Segmentation**
->
+> **GroPrompt: Grounded Prompting for Referring Video Object Segmentation**
 
 ### Abstract
 
