@@ -39,6 +39,8 @@ import torch.nn as nn
 import csv
 
 from sam_lora_image_encoder_mask_decoder import LoRA_Sam
+import warnings
+warnings.filterwarnings("ignore")
 
 # DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 

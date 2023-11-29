@@ -35,7 +35,8 @@ from sam_lora_image_encoder_mask_decoder import LoRA_Sam
 
 import mmcv
 from mmdet.apis import DetInferencer
-
+import warnings
+warnings.filterwarnings("ignore")
 
 # colormap
 color_list = colormap()
