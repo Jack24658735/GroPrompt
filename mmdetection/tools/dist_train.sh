@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+unset LD_LIBRARY_PATH
+
 CONFIG=$1
 GPUS=$2
 NNODES=${NNODES:-1}
