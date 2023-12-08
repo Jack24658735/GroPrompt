@@ -190,6 +190,8 @@ def get_args_parser():
     parser.add_argument("--gdino_thres", type = float, default = 0.0,
                         help = "g dino output thres.")
 
+    parser.add_argument("--num_prop_bbox", type = int, default = 4,
+                        help = "Default prop 4 bboxes, and totally 5 boxes to vote each frame.")
     
     return parser
 

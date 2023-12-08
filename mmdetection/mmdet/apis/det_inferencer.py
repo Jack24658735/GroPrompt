@@ -642,6 +642,10 @@ class DetInferencer(BaseInferencer):
             else:
                 result['panoptic_seg'] = pan
 
+        # TODO: save intermediate feats.
+        if 'intermediate_feats' in data_sample:
+            result['intermediate_feats'] = data_sample.intermediate_feats
+
         if is_save_pred:
             mmengine.dump(result, out_json_path)
 

@@ -15,7 +15,6 @@ from .dino import DINO
 from .glip import (create_positive_map, create_positive_map_label_to_token,
                    run_ner)
 
-
 @MODELS.register_module()
 class GroundingDINO(DINO):
     """Implementation of `Grounding DINO: Marrying DINO with Grounded Pre-
@@ -387,4 +386,5 @@ class GroundingDINO(DINO):
                 # for visualization
                 pred_instances.label_names = label_names
             data_sample.pred_instances = pred_instances
+            data_sample.intermediate_feats = visual_feats[1]
         return batch_data_samples

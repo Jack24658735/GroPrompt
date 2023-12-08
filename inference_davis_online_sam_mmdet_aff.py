@@ -494,9 +494,9 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
                                 # NOTE: intermediate feat for prop.
                                 intermediate_feat = result['predictions'][0]['intermediate_feats']
 
-                                if t > 3:
+                                if t > args.num_prop_bbox - 1:
                                     # prop.
-                                    if len(frame_mem) > 4:
+                                    if len(frame_mem) > args.num_prop_bbox:
                                         frame_mem.pop(0)
                                         feats_mem.pop(0)
 
@@ -517,7 +517,7 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
                                         # out_boxes has shape (1, 4)
                                         out_bboxes_list = []
                                         # prev_bbox[i]
-                                        for i in range(4):
+                                        for i in range(args.num_prop_bbox):
                                             out_boxes, coords = propagate_bbox(feats_mem[i],
                                                                 intermediate_feat,
                                                                 img.shape,
