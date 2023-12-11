@@ -110,8 +110,8 @@ def main(args):
     start_time = time.time()
     print('Start inference')
     ### Note: workaround to avoid the multi-process issue...
-    sub_video_list = video_list[0:]
-    sub_processor(lock, 0, args, data, save_path_prefix, save_visualize_path_prefix, img_folder, sub_video_list)
+    # sub_video_list = video_list[0:]
+    # sub_processor(lock, 0, args, data, save_path_prefix, save_visualize_path_prefix, img_folder, sub_video_list)
 
     for i in range(thread_num):
         if i == thread_num - 1:
@@ -254,7 +254,7 @@ def to_one_hot(y_tensor, n_dims=None):
     y_one_hot = y_one_hot.view(h,w,n_dims)
     return y_one_hot.permute(2,0,1).unsqueeze(0)
 
-def preprocess_seg_uvc(seg_map):
+def preprocess_seg_uvc(seg_map, args):
     # seg = Image.open(seg_dir)
     h,w = seg_map.shape[-1], seg_map.shape[-2]
 
@@ -285,7 +285,7 @@ def preprocess_seg_uvc(seg_map):
   
     return to_one_hot(small_seg)
 
-def propagate_bbox(F_ref, F_tar, seg_ref_shape, bbox_ref):
+def propagate_bbox(F_ref, F_tar, seg_ref_shape, bbox_ref, args):
     # F_ref, F_tar = forward(img_ref, img_tar, model, seg_ref, return_feature=True)
     # seg_ref = seg_ref.squeeze(0)
     F_ref, F_tar = squeeze_all(F_ref, F_tar)
@@ -293,7 +293,7 @@ def propagate_bbox(F_ref, F_tar, seg_ref_shape, bbox_ref):
     ## OK: turn bbox into mask and send into match_ref_tar
     seg_ref = bbox2mask(bbox_ref, seg_ref_shape)
 
-    seg_ref = preprocess_seg_uvc(seg_ref)
+    seg_ref = preprocess_seg_uvc(seg_ref, args)
 
     F_ref = torch.nn.functional.interpolate(F_ref.unsqueeze(0), size=(seg_ref.shape[-2], seg_ref.shape[-1]), mode='bilinear')
     F_tar = torch.nn.functional.interpolate(F_tar.unsqueeze(0), size=(seg_ref.shape[-2], seg_ref.shape[-1]), mode='bilinear')
@@ -521,7 +521,8 @@ def sub_processor(lock, pid, args, data, save_path_prefix, save_visualize_path_p
                                             out_boxes, coords = propagate_bbox(feats_mem[i],
                                                                 intermediate_feat,
                                                                 img.shape,
-                                                                frame_mem[i])
+                                                                frame_mem[i], 
+                                                                args)
                                             out_bboxes_list.append(out_boxes)
 
 
