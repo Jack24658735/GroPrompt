@@ -28,4 +28,6 @@ python3 eval_davis.py --results_path=${ANNO1_DIR} --eval_bbox --eval_mask
 python3 eval_davis.py --results_path=${ANNO2_DIR} --eval_bbox --eval_mask
 python3 eval_davis.py --results_path=${ANNO3_DIR} --eval_bbox --eval_mask
 
+python3 j_f_avg.py --anno0=${ANNO0_DIR} --anno1=${ANNO1_DIR} --anno2=${ANNO2_DIR} --anno3=${ANNO3_DIR} --result_path=${OUTPUT_DIR}
+
 echo "Working path is: ${OUTPUT_DIR}"
